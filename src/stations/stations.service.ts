@@ -1,9 +1,12 @@
 import { StationDto } from './dto/station.dto';
 import { MeasurementDto } from './dto/measurement.dto';
-import { StationEntity, StationDocument } from './database/station.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import {
+  StationEntity,
+  StationDocument,
+} from './database/model/station.entity';
 
 @Injectable()
 export class StationsService {
@@ -13,17 +16,7 @@ export class StationsService {
   ) {}
 
   async findAll(): Promise<StationEntity[]> {
-    return await this.stationModel
-      .aggregate([
-        {
-          $project: {
-            createdDate: 1,
-            location: 2,
-            measurements: { $arrayElemAt: ['$measurements', -1] },
-          },
-        },
-      ])
-      .exec();
+    return await this.stationModel.find().exec();
   }
 
   async findOneByIdAndDate(
@@ -73,23 +66,25 @@ export class StationsService {
   ): Promise<StationEntity> {
     const station: StationEntity = await this.stationModel
       .findByIdAndUpdate(
-        { _id: id },
+        { _id: new Types.ObjectId(id) },
         { $push: { measurements: measurementDto } },
         function (error, success) {
           if (error) {
-            console.log(error);
+            console.error(error);
           } else {
             console.log(success);
           }
         },
       )
-      .exec();
+      .clone();
 
     return station;
   }
 
   async delete(id: string) {
-    return await this.stationModel.deleteOne({ _id: id }).exec();
+    return await this.stationModel
+      .deleteOne({ _id: new Types.ObjectId(id) })
+      .exec();
   }
 
   private getCurrentISOString(date: Date): string {

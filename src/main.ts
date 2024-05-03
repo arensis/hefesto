@@ -6,8 +6,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const config = new DocumentBuilder()
-    .setTitle('Kairos weather stations')
-    .setDescription('The Kairos stations API')
+    .setTitle('Hefesto weather stations')
+    .setDescription('The Hefesto stations API')
     .setVersion('1.0')
     .addTag('stations')
     .build();

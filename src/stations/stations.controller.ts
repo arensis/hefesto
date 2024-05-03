@@ -18,7 +18,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { StationEntity } from './database/station.entity';
+import { StationEntity } from './database/model/station.entity';
 
 @ApiTags('stations')
 @Controller('stations')
@@ -36,7 +36,10 @@ export class StationsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Find a single station by id' })
+  @ApiOperation({
+    summary:
+      'Find a single station by id filtering the measurements by specific date',
+  })
   @ApiOkResponse({ type: StationEntity })
   async findOneByIdAndDate(
     @Param('id') id: string,
@@ -59,16 +62,16 @@ export class StationsController {
     return this.stationService.create(stationDto);
   }
 
-  @Patch('/:stationId/measurements')
-  @ApiOperation({ summary: 'Add a new measurement to an specific stations' })
+  @Patch('/:id/measurements')
+  @ApiOperation({ summary: 'Add a new measurement to an specific station' })
   @ApiAcceptedResponse({
     type: StationEntity,
   })
   async addMeasurement(
-    @Param('stationId') stationId: string,
+    @Param('id') id: string,
     @Body() measurementDto: MeasurementDto,
   ): Promise<StationEntity> {
-    return this.stationService.addMeasurement(stationId, measurementDto);
+    return this.stationService.addMeasurement(id, measurementDto);
   }
 
   @Delete(':id')
