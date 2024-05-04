@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { StationEntity } from './database/model/station.entity';
+import { StationResponseDto } from './dto/station-response.dto';
 
 @ApiTags('stations')
 @Controller('stations')
@@ -31,28 +32,17 @@ export class StationsController {
     type: StationEntity,
     isArray: true,
   })
-  async findAll(): Promise<StationEntity[]> {
+  async findAll(): Promise<StationResponseDto[]> {
     return this.stationService.findAll();
   }
 
   @Get(':id')
   @ApiOperation({
-    summary:
-      'Find a single station by id filtering the measurements by specific date',
+    summary: 'Find a single station by id',
   })
   @ApiOkResponse({ type: StationEntity })
-  async findOneByIdAndDate(
-    @Param('id') id: string,
-    @Query() queryDto: DateQueryDto,
-  ): Promise<StationEntity> {
-    const station = await this.stationService.findOneByIdAndDate(
-      id,
-      new Date(queryDto.date),
-    );
-
-    console.log(station);
-
-    return station;
+  async findById(@Param('id') id: string): Promise<StationResponseDto> {
+    return await this.stationService.findById(id);
   }
 
   @Post()
@@ -60,6 +50,25 @@ export class StationsController {
   @ApiAcceptedResponse({ type: StationEntity })
   async create(@Body() stationDto: StationDto): Promise<StationEntity> {
     return this.stationService.create(stationDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete station' })
+  @ApiAcceptedResponse()
+  async delete(@Param('id') id: string) {
+    return this.stationService.delete(id);
+  }
+
+  @Get(':id/measurements')
+  @ApiOperation({
+    summary: 'Find measurements by station id and date',
+  })
+  @ApiOkResponse({ type: StationEntity })
+  async findMeasurementsByIdAndDate(
+    @Param('id') id: string,
+    @Query() queryDto: DateQueryDto,
+  ): Promise<MeasurementDto[]> {
+    return this.stationService.findMeasurementsBy(id, new Date(queryDto.date));
   }
 
   @Patch('/:id/measurements')
@@ -72,12 +81,5 @@ export class StationsController {
     @Body() measurementDto: MeasurementDto,
   ): Promise<StationEntity> {
     return this.stationService.addMeasurement(id, measurementDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete station' })
-  @ApiAcceptedResponse()
-  async delete(@Param('id') id: string) {
-    return this.stationService.delete(id);
   }
 }

@@ -23,6 +23,9 @@ export class StationEntity {
     childSchemas: [{ type: MeasurementEntity }],
   })
   measurements: MeasurementEntity[];
+
+  @ApiProperty()
+  _id: any;
 }
 
 export const StationSchema = SchemaFactory.createForClass(StationEntity);

@@ -7,6 +7,8 @@ import {
   StationEntity,
   StationDocument,
 } from './database/model/station.entity';
+import { LocationDto } from './dto/location.dto';
+import { StationResponseDto } from './dto/station-response.dto';
 
 @Injectable()
 export class StationsService {
@@ -15,19 +17,96 @@ export class StationsService {
     private stationModel: Model<StationDocument>,
   ) {}
 
-  async findAll(): Promise<StationEntity[]> {
-    return await this.stationModel.find().exec();
+  async findAll(): Promise<StationResponseDto[]> {
+    const date = new Date();
+    const startDate = this.getCurrentISOString(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = this.getCurrentISOString(date);
+
+    const stations = await this.stationModel
+      .aggregate([
+        {
+          $project: {
+            location: 1,
+            createdDate: 1,
+            measurements: {
+              $filter: {
+                input: '$measurements',
+                cond: {
+                  $and: [
+                    { $gte: ['$$this.date', startDate] },
+                    { $lt: ['$$this.date', endDate] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ])
+      .exec();
+
+    return stations.map((station: StationEntity) => {
+      const measurement = station.measurements.slice(-1)[0];
+      return {
+        id: station?._id,
+        createdDate: station.createdDate,
+        location: {
+          name: station.location.name,
+          indoor: station.location.indoor,
+          city: station.location.city,
+          latitude: station.location.latitude,
+          longitude: station.location.longitude,
+        } as LocationDto,
+        currentMeasurement: {
+          date: measurement.date,
+          temperature: measurement.temperature,
+          humidity: measurement.humidity,
+          airPressure: measurement.airPressure,
+        } as MeasurementDto,
+      } as StationResponseDto;
+    });
   }
 
-  async findOneByIdAndDate(
-    id: string,
+  async findMeasurementsBy(
+    stationId: string,
     measurementDate: Date,
-  ): Promise<StationEntity> {
+  ): Promise<MeasurementDto[]> {
     const startDate = this.getCurrentISOString(measurementDate);
     measurementDate.setDate(measurementDate.getDate() + 1);
     const endDate = this.getCurrentISOString(measurementDate);
 
-    const stations = await this.stationModel
+    const station = await this.stationModel
+      .aggregate([
+        { $match: { _id: new Types.ObjectId(stationId) } },
+        {
+          $project: {
+            _id: 0,
+            measurements: {
+              $filter: {
+                input: '$measurements',
+                cond: {
+                  $and: [
+                    { $gte: ['$$this.date', startDate] },
+                    { $lt: ['$$this.date', endDate] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ])
+      .exec();
+
+    return station[0]?.measurements;
+  }
+
+  async findById(id: string): Promise<StationResponseDto> {
+    const date = new Date();
+    const startDate = this.getCurrentISOString(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = this.getCurrentISOString(date);
+
+    const stationEntities: StationEntity[] = await this.stationModel
       .aggregate([
         { $match: { _id: new Types.ObjectId(id) } },
         {
@@ -50,7 +129,26 @@ export class StationsService {
       ])
       .exec();
 
-    return stations[0];
+    const station = stationEntities[0];
+    const measurement = station.measurements.slice(-1)[0];
+
+    return {
+      id: station?._id,
+      createdDate: station.createdDate,
+      location: {
+        name: station.location.name,
+        indoor: station.location.indoor,
+        city: station.location.city,
+        latitude: station.location.latitude,
+        longitude: station.location.longitude,
+      } as LocationDto,
+      currentMeasurement: {
+        date: measurement.date,
+        temperature: measurement.temperature,
+        humidity: measurement.humidity,
+        airPressure: measurement.airPressure,
+      } as MeasurementDto,
+    } as StationResponseDto;
   }
 
   async create(stationDto: StationDto): Promise<StationEntity> {
@@ -68,15 +166,8 @@ export class StationsService {
       .findByIdAndUpdate(
         { _id: new Types.ObjectId(id) },
         { $push: { measurements: measurementDto } },
-        function (error, success) {
-          if (error) {
-            console.error(error);
-          } else {
-            console.log(success);
-          }
-        },
       )
-      .clone();
+      .exec();
 
     return station;
   }
