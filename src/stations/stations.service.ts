@@ -172,10 +172,17 @@ export class StationsService {
     id: string,
     measurementDto: MeasurementDto,
   ): Promise<StationEntity> {
+    const measurement = {
+      date: new Date(),
+      temperature: measurementDto.temperature,
+      humidity: measurementDto.humidity,
+      airPressure: measurementDto.airPressure ?? 0,
+    } as MeasurementDto;
+
     const station: StationEntity = await this.stationModel
       .findByIdAndUpdate(
         { _id: new Types.ObjectId(id) },
-        { $push: { measurements: measurementDto } },
+        { $push: { measurements: measurement } },
       )
       .exec();
 
