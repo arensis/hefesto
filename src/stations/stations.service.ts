@@ -83,9 +83,11 @@ export class StationsService {
     stationId: string,
     measurementDate: Date,
   ): Promise<MeasurementDto[]> {
-    const startDate = this.getCurrentISOString(measurementDate);
-    measurementDate.setDate(measurementDate.getDate() + 1);
-    const endDate = this.getCurrentISOString(measurementDate);
+    const date = new Date(measurementDate);
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = new Date(date);
 
     const station = await this.stationModel
       .aggregate([
@@ -169,8 +171,9 @@ export class StationsService {
 
   async addMeasurement(
     id: string,
-    measurementDto: MeasurementDto,
+    measurementDto: Partial<MeasurementDto>,
   ): Promise<StationEntity> {
+    console.log('measurementDto', measurementDto);
     const measurement = {
       date: new Date(),
       temperature: measurementDto.temperature,

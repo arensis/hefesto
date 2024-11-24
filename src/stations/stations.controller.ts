@@ -78,8 +78,9 @@ export class StationsController {
   })
   async addMeasurement(
     @Param('id') id: string,
-    @Body() measurementDto: MeasurementDto,
+    @Body() measurementDto: Partial<MeasurementDto>,
   ): Promise<StationEntity> {
+    console.log('[Controller] addMeasurement - data', measurementDto);
     return this.stationService.addMeasurement(id, measurementDto);
   }
 }
