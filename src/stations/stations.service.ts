@@ -19,9 +19,10 @@ export class StationsService {
 
   async findAll(): Promise<StationResponseDto[]> {
     const date = new Date();
-    const startDate = this.getCurrentISOString(date);
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
     date.setDate(date.getDate() + 1);
-    const endDate = this.getCurrentISOString(date);
+    const endDate = new Date(date);
 
     const stations = await this.stationModel
       .aggregate([
@@ -47,6 +48,7 @@ export class StationsService {
 
     return stations.map((station: StationEntity) => {
       const measurement = station.measurements.slice(-1)[0];
+      console.log('measurement', measurement);
       return {
         id: station?._id,
         createdDate: station.createdDate,
@@ -112,9 +114,10 @@ export class StationsService {
 
   async findById(id: string): Promise<StationResponseDto> {
     const date = new Date();
-    const startDate = this.getCurrentISOString(date);
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
     date.setDate(date.getDate() + 1);
-    const endDate = this.getCurrentISOString(date);
+    const endDate = new Date(date);
 
     const stationEntities: StationEntity[] = await this.stationModel
       .aggregate([
@@ -141,6 +144,7 @@ export class StationsService {
 
     const station = stationEntities[0];
     const measurement = station.measurements.slice(-1)[0];
+    console.log('station', station);
 
     return {
       id: station?._id,
@@ -152,12 +156,7 @@ export class StationsService {
         latitude: station.location.latitude,
         longitude: station.location.longitude,
       } as LocationDto,
-      currentMeasurement: {
-        date: measurement.date,
-        temperature: measurement.temperature,
-        humidity: measurement.humidity,
-        airPressure: measurement.airPressure,
-      } as MeasurementDto,
+      currentMeasurement: this.buildMeasurement(measurement),
     } as StationResponseDto;
   }
 
@@ -196,6 +195,6 @@ export class StationsService {
   }
 
   private getCurrentISOString(date: Date): string {
-    return date.toISOString().slice(0, date.toISOString().indexOf('T'));
+    return date.toISOString();
   }
 }
