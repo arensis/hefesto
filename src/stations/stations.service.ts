@@ -57,14 +57,24 @@ export class StationsService {
           latitude: station.location.latitude,
           longitude: station.location.longitude,
         } as LocationDto,
-        currentMeasurement: {
-          date: measurement.date,
-          temperature: measurement.temperature,
-          humidity: measurement.humidity,
-          airPressure: measurement.airPressure,
-        } as MeasurementDto,
+        currentMeasurement: this.buildMeasurement(measurement),
       } as StationResponseDto;
     });
+  }
+
+  private buildMeasurement(
+    measurement: MeasurementDto,
+  ): Partial<MeasurementDto> {
+    if (measurement) {
+      return {
+        date: measurement.date,
+        temperature: measurement.temperature,
+        humidity: measurement.humidity,
+        airPressure: measurement.airPressure,
+      } as MeasurementDto;
+    }
+
+    return {};
   }
 
   async findMeasurementsBy(
