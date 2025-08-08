@@ -174,21 +174,26 @@ export class StationsService {
     measurementDto: Partial<MeasurementDto>,
   ): Promise<StationEntity> {
     console.log('measurementDto', measurementDto);
-    const measurement = {
-      date: new Date(),
-      temperature: measurementDto.temperature,
-      humidity: measurementDto.humidity,
-      airPressure: measurementDto.airPressure ?? 0,
-    } as MeasurementDto;
 
-    const station: StationEntity = await this.stationModel
-      .findByIdAndUpdate(
-        { _id: new Types.ObjectId(id) },
-        { $push: { measurements: measurement } },
-      )
-      .exec();
+    if ((measurementDto?.temperature || 0) > 0) {
+      const measurement = {
+        date: new Date(),
+        temperature: measurementDto.temperature,
+        humidity: measurementDto.humidity,
+        airPressure: measurementDto.airPressure ?? 0,
+      } as MeasurementDto;
 
-    return station;
+      const station: StationEntity = await this.stationModel
+        .findByIdAndUpdate(
+          { _id: new Types.ObjectId(id) },
+          { $push: { measurements: measurement } },
+        )
+        .exec();
+
+      return station;
+    }
+
+    return await this.stationModel.findById(id).exec();
   }
 
   async delete(id: string) {

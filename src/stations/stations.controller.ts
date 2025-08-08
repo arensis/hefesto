@@ -80,7 +80,10 @@ export class StationsController {
     @Param('id') id: string,
     @Body() measurementDto: Partial<MeasurementDto>,
   ): Promise<StationEntity> {
-    console.log('[Controller] addMeasurement - data', measurementDto);
+    console.log(
+      `[Controller] Station: ${id} addMeasurement - data`,
+      measurementDto,
+    );
     return this.stationService.addMeasurement(id, measurementDto);
   }
 }
