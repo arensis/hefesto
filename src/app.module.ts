@@ -17,7 +17,7 @@ import { StationsModule } from './stations/stations.module';
     //   }),
     //   inject: [ConfigService],
     // }),
-    MongooseModule.forRoot('mongodb://192.168.1.145:3000/mongo-kairos'),
+    MongooseModule.forRoot('mongodb://127.0.0.1:3000/mongo-kairos'),
     StationsModule,
   ],
   providers: [],
