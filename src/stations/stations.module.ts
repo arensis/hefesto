@@ -1,6 +1,6 @@
-import { StationsService } from './stations.service';
+import { StationsService } from './services/stations.service';
 import { Module } from '@nestjs/common';
-import { StationsController } from './stations.controller';
+import { StationsController } from './controllers/stations.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { StationEntity, StationSchema } from './database/model/station.entity';
 

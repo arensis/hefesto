@@ -13,6 +13,13 @@ export class StationResponseDto {
 
   @ApiProperty({
     type: MeasurementDto,
+    isArray: true,
   })
   currentMeasurement: MeasurementDto;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+  })
+  stationGroupId?: string;
 }

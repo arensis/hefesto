@@ -25,6 +25,11 @@ export class StationEntity {
   measurements: MeasurementEntity[];
 
   @ApiProperty()
+  @Prop({ type: String, required: false })
+  @Type(() => String)
+  stationGroupId?: string;
+
+  @ApiProperty()
   _id: any;
 }
 

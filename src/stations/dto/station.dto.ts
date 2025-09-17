@@ -16,4 +16,10 @@ export class StationDto {
     isArray: true,
   })
   measurements: MeasurementDto[];
+
+  @ApiProperty({
+    type: String,
+    required: false,
+  })
+  stationGroupId?: string;
 }
