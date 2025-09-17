@@ -195,9 +195,40 @@ export class StationsService {
         .exec();
 
       if (station.stationGroupId) {
+        const stations: StationEntity[] = await this.stationModel
+          .find({ stationGroupId: new Types.ObjectId(id) })
+          .exec();
+
+        const humidities: number[] = stations.map(
+          (station) => station.measurements[0].humidity,
+        );
+
+        const humidityMean: number = this.calculateArithmeticMean(humidities);
+
+        const temperatures: number[] = stations.map(
+          (station) => station.measurements[0].temperature,
+        );
+
+        const temperatureMean: number =
+          this.calculateArithmeticMean(temperatures);
+
+        const airPressures: number[] = stations.map(
+          (station) => station.measurements[0].airPressure,
+        );
+
+        const airPressureMean: number =
+          this.calculateArithmeticMean(airPressures);
+
+        const groupMeasurement = {
+          date: new Date(),
+          temperature: temperatureMean,
+          humidity: humidityMean,
+          airPressure: airPressureMean ?? 0,
+        } as MeasurementDto;
+
         this.stationGroupsService.addMeasurement(
           station.stationGroupId,
-          measurement,
+          groupMeasurement,
         );
       }
 
@@ -211,6 +242,19 @@ export class StationsService {
     return await this.stationModel
       .deleteOne({ _id: new Types.ObjectId(id) })
       .exec();
+  }
+
+  private calculateArithmeticMean(numbers: number[]): number {
+    const itemsAmount = numbers.length;
+
+    if (itemsAmount === 0) {
+      return 0;
+    }
+
+    const sum = numbers.reduce((accumulator, value) => accumulator + value, 0);
+    const arithmeticMean = sum / itemsAmount;
+
+    return arithmeticMean;
   }
 
   private getCurrentISOString(date: Date): string {
