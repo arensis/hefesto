@@ -51,6 +51,18 @@ export class StationGroupsController {
     return this.stationGroupsService.create(stationGroupDto);
   }
 
+  @Patch('/:id/stations/:stationId')
+  @ApiOperation({ summary: 'Add a new station to the group' })
+  @ApiAcceptedResponse({
+    type: StationGroupEntity,
+  })
+  async addStation(
+    @Param('id') id: string,
+    @Param('stationId') stationId: string,
+  ): Promise<StationGroupEntity> {
+    return this.stationGroupsService.addStation(id, stationId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete station group' })
   @ApiAcceptedResponse()

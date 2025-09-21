@@ -1,20 +1,28 @@
-import { StationDto } from './dto/station.dto';
-import { MeasurementDto } from './dto/measurement.dto';
-import { Injectable } from '@nestjs/common';
+import { StationDto } from '../dto/station.dto';
+import { MeasurementDto } from '../dto/measurement.dto';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
   StationEntity,
   StationDocument,
-} from './database/model/station.entity';
-import { LocationDto } from './dto/location.dto';
-import { StationResponseDto } from './dto/station-response.dto';
+} from '../database/model/station.entity';
+import { LocationDto } from '../dto/location.dto';
+import { StationResponseDto } from '../dto/station-response.dto';
+import { StationGroupsService } from './station-groups.service';
 
 @Injectable()
 export class StationsService {
   constructor(
     @InjectModel(StationEntity.name)
     private stationModel: Model<StationDocument>,
+    @Inject(forwardRef(() => StationGroupsService))
+    private readonly stationGroupsService: StationGroupsService,
   ) {}
 
   async findAll(): Promise<StationResponseDto[]> {
@@ -27,9 +35,19 @@ export class StationsService {
     const stations = await this.stationModel
       .aggregate([
         {
+          $match: {
+            $or: [
+              { email: { $exists: false } },
+              { email: null },
+              { email: '' },
+            ],
+          },
+        },
+        {
           $project: {
             location: 1,
             createdDate: 1,
+            stationGroupId: 1,
             measurements: {
               $filter: {
                 input: '$measurements',
@@ -48,7 +66,7 @@ export class StationsService {
 
     return stations.map((station: StationEntity) => {
       const measurement = station.measurements.slice(-1)[0];
-      console.log('measurement', measurement);
+
       return {
         id: station?._id,
         createdDate: station.createdDate,
@@ -60,6 +78,7 @@ export class StationsService {
           longitude: station.location.longitude,
         } as LocationDto,
         currentMeasurement: this.buildMeasurement(measurement),
+        stationGroupId: station.stationGroupId,
       } as StationResponseDto;
     });
   }
@@ -83,9 +102,11 @@ export class StationsService {
     stationId: string,
     measurementDate: Date,
   ): Promise<MeasurementDto[]> {
-    const startDate = this.getCurrentISOString(measurementDate);
-    measurementDate.setDate(measurementDate.getDate() + 1);
-    const endDate = this.getCurrentISOString(measurementDate);
+    const date = new Date(measurementDate);
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = new Date(date);
 
     const station = await this.stationModel
       .aggregate([
@@ -112,7 +133,15 @@ export class StationsService {
     return station[0]?.measurements;
   }
 
-  async findById(id: string): Promise<StationResponseDto> {
+  async findById(id: string): Promise<StationEntity> {
+    return this.stationModel
+      .findOne({ $match: { _id: new Types.ObjectId(id) } })
+      .exec();
+  }
+
+  async findByIdWithCurrentDayMeasurements(
+    id: string,
+  ): Promise<StationResponseDto> {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(date);
@@ -126,6 +155,7 @@ export class StationsService {
           $project: {
             location: 1,
             createdDate: 1,
+            stationGroupId: 1,
             measurements: {
               $filter: {
                 input: '$measurements',
@@ -157,6 +187,7 @@ export class StationsService {
         longitude: station.location.longitude,
       } as LocationDto,
       currentMeasurement: this.buildMeasurement(measurement),
+      stationGroupId: station.stationGroupId,
     } as StationResponseDto;
   }
 
@@ -169,29 +200,98 @@ export class StationsService {
 
   async addMeasurement(
     id: string,
-    measurementDto: MeasurementDto,
-  ): Promise<StationEntity> {
-    const measurement = {
-      date: new Date(),
-      temperature: measurementDto.temperature,
-      humidity: measurementDto.humidity,
-      airPressure: measurementDto.airPressure ?? 0,
-    } as MeasurementDto;
+    measurementDto: Partial<MeasurementDto>,
+  ): Promise<StationEntity | BadRequestException> {
+    if ((measurementDto?.temperature || 0) > 0) {
+      const measurement = {
+        date: new Date(),
+        temperature: measurementDto.temperature,
+        humidity: measurementDto.humidity,
+        airPressure: measurementDto.airPressure ?? 0,
+      } as MeasurementDto;
 
-    const station: StationEntity = await this.stationModel
+      const station: StationEntity = await this.stationModel.findById(id);
+
+      this.stationModel
+        .updateOne(
+          { _id: new Types.ObjectId(id) },
+          { $push: { measurements: measurement } },
+        )
+        .exec();
+
+      if (station.stationGroupId) {
+        const stations: StationEntity[] = await this.stationModel
+          .find({ stationGroupId: new Types.ObjectId(id) })
+          .exec();
+
+        const humidities: number[] = stations.map(
+          (station) => station.measurements[0].humidity,
+        );
+
+        const humidityMean: number = this.calculateArithmeticMean(humidities);
+
+        const temperatures: number[] = stations.map(
+          (station) => station.measurements[0].temperature,
+        );
+
+        const temperatureMean: number =
+          this.calculateArithmeticMean(temperatures);
+
+        const airPressures: number[] = stations.map(
+          (station) => station.measurements[0].airPressure,
+        );
+
+        const airPressureMean: number =
+          this.calculateArithmeticMean(airPressures);
+
+        const groupMeasurement = {
+          date: new Date(),
+          temperature: temperatureMean,
+          humidity: humidityMean,
+          airPressure: airPressureMean ?? 0,
+        } as MeasurementDto;
+
+        this.stationGroupsService.addMeasurement(
+          station.stationGroupId,
+          groupMeasurement,
+        );
+      }
+
+      return await this.stationModel.findById(id).exec();
+    }
+
+    throw new BadRequestException('Temperature cannot be 0 o null');
+  }
+
+  async updateStationGroupId(
+    id: string,
+    stationGroupId: string,
+  ): Promise<StationEntity> {
+    return this.stationModel
       .findByIdAndUpdate(
         { _id: new Types.ObjectId(id) },
-        { $push: { measurements: measurement } },
+        { $set: { stationGroupId } },
       )
       .exec();
-
-    return station;
   }
 
   async delete(id: string) {
     return await this.stationModel
       .deleteOne({ _id: new Types.ObjectId(id) })
       .exec();
+  }
+
+  private calculateArithmeticMean(numbers: number[]): number {
+    const itemsAmount = numbers.length;
+
+    if (itemsAmount === 0) {
+      return 0;
+    }
+
+    const sum = numbers.reduce((accumulator, value) => accumulator + value, 0);
+    const arithmeticMean = sum / itemsAmount;
+
+    return arithmeticMean;
   }
 
   private getCurrentISOString(date: Date): string {

@@ -1,8 +1,9 @@
+import { StationResponseDto } from './../dto/station-response.dto';
 import { DateQueryDto } from '../dto/date-query.dto';
 import { StationDto } from '../dto/station.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
-import { StationsService } from '../services/stations.service';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -19,7 +20,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { StationEntity } from '../database/model/station.entity';
-import { StationResponseDto } from '../dto/station-response.dto';
+import { StationsService } from '../services/stations.service';
 
 @ApiTags('stations')
 @Controller('stations')
@@ -27,22 +28,36 @@ export class StationsController {
   constructor(private readonly stationService: StationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Find all the stations' })
+  @ApiOperation({
+    summary: 'Find all the stations with only current measurement',
+  })
   @ApiOkResponse({
-    type: StationEntity,
+    type: StationResponseDto,
     isArray: true,
   })
   async findAll(): Promise<StationResponseDto[]> {
-    return this.stationService.findAll();
+    return this.stationService.findAllNotGrouped();
   }
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Find a single station by id',
+    summary:
+      'Find a single station by id and returns all the measurements of the current day',
   })
-  @ApiOkResponse({ type: StationEntity })
+  @ApiOkResponse({ type: StationResponseDto })
   async findById(@Param('id') id: string): Promise<StationResponseDto> {
-    return await this.stationService.findById(id);
+    return await this.stationService.findByIdWithCurrentDayMeasurements(id);
+  }
+
+  @Get('station-group/:stationGroupId')
+  @ApiOperation({
+    summary: '',
+  })
+  @ApiOkResponse({ type: StationResponseDto, isArray: true })
+  async findByStationGroupId(
+    @Param('stationGroupId') stationGroupId: string,
+  ): Promise<StationResponseDto[]> {
+    return await this.stationService.findByStationGroupId(stationGroupId);
   }
 
   @Post()
@@ -63,7 +78,7 @@ export class StationsController {
   @ApiOperation({
     summary: 'Find measurements by station id and date',
   })
-  @ApiOkResponse({ type: StationEntity })
+  @ApiOkResponse({ type: MeasurementDto, isArray: true })
   async findMeasurementsByIdAndDate(
     @Param('id') id: string,
     @Query() queryDto: DateQueryDto,
@@ -79,11 +94,7 @@ export class StationsController {
   async addMeasurement(
     @Param('id') id: string,
     @Body() measurementDto: Partial<MeasurementDto>,
-  ): Promise<StationEntity> {
-    console.log(
-      `[Controller] Station: ${id} addMeasurement - data`,
-      measurementDto,
-    );
+  ): Promise<StationEntity | BadRequestException> {
     return this.stationService.addMeasurement(id, measurementDto);
   }
 }

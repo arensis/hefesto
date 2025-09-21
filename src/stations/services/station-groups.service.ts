@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { StationGroupResponseDto } from './../dto/station-group-response.dto';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   StationGroupDocument,
@@ -7,18 +8,19 @@ import {
 import { Model, Types } from 'mongoose';
 import { LocationDto } from '../dto/location.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
-import { StationGroupResponseDto } from '../dto/station-group-response.dto';
-import { StationResponseDto } from '../dto/station-response.dto';
 import { StationGroupDto } from '../dto/station.group.dto';
+import { StationsService } from './stations.service';
 
 @Injectable()
 export class StationGroupsService {
   constructor(
     @InjectModel(StationGroupEntity.name)
     private stationGroupModel: Model<StationGroupDocument>,
+    @Inject(forwardRef(() => StationsService))
+    private stationsService: StationsService,
   ) {}
 
-  async findAll(): Promise<StationResponseDto[]> {
+  async findAll(): Promise<StationGroupResponseDto[]> {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(date);
@@ -31,6 +33,7 @@ export class StationGroupsService {
           $project: {
             location: 1,
             createdDate: 1,
+            stations: 1,
             measurements: {
               $filter: {
                 input: '$measurements',
@@ -61,11 +64,12 @@ export class StationGroupsService {
           longitude: stationGroup.location.longitude,
         } as LocationDto,
         currentMeasurement: this.buildMeasurement(measurement),
+        stations: stationGroup.stations,
       } as StationGroupResponseDto;
     });
   }
 
-  async findById(id: string): Promise<StationResponseDto> {
+  async findById(id: string): Promise<StationGroupResponseDto> {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(date);
@@ -91,7 +95,7 @@ export class StationGroupsService {
                   },
                 },
               },
-              stationsId: 1,
+              stations: 1,
             },
           },
         ])
@@ -111,6 +115,7 @@ export class StationGroupsService {
         longitude: stationGroup.location.longitude,
       } as LocationDto,
       currentMeasurement: this.buildMeasurement(measurement),
+      stations: stationGroup.stations,
     } as StationGroupResponseDto;
   }
 
@@ -119,7 +124,7 @@ export class StationGroupsService {
     stationGroupDto.measurements = [];
     stationGroupDto.stationsId = [];
 
-    return await this.stationGroupModel.create(StationGroupDto);
+    return await this.stationGroupModel.create(stationGroupDto);
   }
 
   async addMeasurement(
@@ -148,9 +153,16 @@ export class StationGroupsService {
   }
 
   async addStation(id: string, stationId: string): Promise<StationGroupEntity> {
+    const station = await this.stationsService.updateStationGroupId(
+      stationId,
+      id,
+    );
+
+    console.log('updated station ', station);
+
     return await this.stationGroupModel.findByIdAndUpdate(
       { _id: new Types.ObjectId(id) },
-      { $push: { stationIds: stationId } },
+      { $push: { stations: stationId } },
     );
   }
 

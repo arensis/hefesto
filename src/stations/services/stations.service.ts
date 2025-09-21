@@ -1,6 +1,11 @@
 import { StationDto } from '../dto/station.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -16,10 +21,76 @@ export class StationsService {
   constructor(
     @InjectModel(StationEntity.name)
     private stationModel: Model<StationDocument>,
+    @Inject(forwardRef(() => StationGroupsService))
     private readonly stationGroupsService: StationGroupsService,
   ) {}
 
-  async findAll(): Promise<StationResponseDto[]> {
+  async findByIdWithCurrentDayMeasurements(
+    id: string,
+  ): Promise<StationResponseDto> {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = new Date(date);
+
+    const stationEntities: StationEntity[] = await this.stationModel
+      .aggregate([
+        { $match: { _id: new Types.ObjectId(id) } },
+        {
+          $project: {
+            location: 1,
+            createdDate: 1,
+            stationGroupId: 1,
+            measurements: {
+              $filter: {
+                input: '$measurements',
+                cond: {
+                  $and: [
+                    { $gte: ['$$this.date', startDate] },
+                    { $lt: ['$$this.date', endDate] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ])
+      .exec();
+
+    const station = stationEntities[0];
+    const measurement = station.measurements.slice(-1)[0];
+    console.log('station', station);
+
+    return {
+      id: station?._id,
+      createdDate: station.createdDate,
+      location: {
+        name: station.location.name,
+        indoor: station.location.indoor,
+        city: station.location.city,
+        latitude: station.location.latitude,
+        longitude: station.location.longitude,
+        measurements: station.measurements,
+      } as LocationDto,
+      currentMeasurement: this.buildMeasurement(measurement),
+      stationGroupId: station.stationGroupId,
+    } as StationResponseDto;
+  }
+
+  async updateStationGroupId(
+    id: string,
+    stationGroupId: string,
+  ): Promise<StationEntity> {
+    return this.stationModel
+      .findByIdAndUpdate(
+        { _id: new Types.ObjectId(id) },
+        { $set: { stationGroupId } },
+      )
+      .exec();
+  }
+
+  async findAllNotGrouped(): Promise<StationResponseDto[]> {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(date);
@@ -29,9 +100,18 @@ export class StationsService {
     const stations = await this.stationModel
       .aggregate([
         {
+          $match: {
+            $or: [
+              { stationGroupId: { $exists: false } },
+              { stationGroupId: { $in: [null, ''] } },
+            ],
+          },
+        },
+        {
           $project: {
             location: 1,
             createdDate: 1,
+            stationGroupId: 1,
             measurements: {
               $filter: {
                 input: '$measurements',
@@ -62,23 +142,66 @@ export class StationsService {
           longitude: station.location.longitude,
         } as LocationDto,
         currentMeasurement: this.buildMeasurement(measurement),
+        stationGroupId: station.stationGroupId,
       } as StationResponseDto;
     });
   }
 
-  private buildMeasurement(
-    measurement: MeasurementDto,
-  ): Partial<MeasurementDto> {
-    if (measurement) {
-      return {
-        date: measurement.date,
-        temperature: measurement.temperature,
-        humidity: measurement.humidity,
-        airPressure: measurement.airPressure,
-      } as MeasurementDto;
-    }
+  async findAll(): Promise<StationResponseDto[]> {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = new Date(date);
 
-    return {};
+    const stations = await this.stationModel
+      .aggregate([
+        {
+          $match: {
+            $or: [
+              { stationGroupId: { $exists: false } },
+              { stationGroupId: { $in: [null, ''] } },
+            ],
+          },
+        },
+        {
+          $project: {
+            location: 1,
+            createdDate: 1,
+            stationGroupId: 1,
+            measurements: {
+              $filter: {
+                input: '$measurements',
+                cond: {
+                  $and: [
+                    { $gte: ['$$this.date', startDate] },
+                    { $lt: ['$$this.date', endDate] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ])
+      .exec();
+
+    return stations.map((station: StationEntity) => {
+      const measurement = station.measurements.slice(-1)[0];
+      console.log('measurement', measurement);
+      return {
+        id: station?._id,
+        createdDate: station.createdDate,
+        location: {
+          name: station.location.name,
+          indoor: station.location.indoor,
+          city: station.location.city,
+          latitude: station.location.latitude,
+          longitude: station.location.longitude,
+        } as LocationDto,
+        currentMeasurement: this.buildMeasurement(measurement),
+        stationGroupId: station.stationGroupId,
+      } as StationResponseDto;
+    });
   }
 
   async findMeasurementsBy(
@@ -116,6 +239,58 @@ export class StationsService {
     return station[0]?.measurements;
   }
 
+  async findByStationGroupId(
+    stationGroupId: string,
+  ): Promise<StationResponseDto[]> {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = new Date(date);
+    const stations: StationEntity[] = await this.stationModel
+      .aggregate([
+        { $match: { stationGroupId: stationGroupId } },
+        {
+          $project: {
+            location: 1,
+            createdDate: 1,
+            stationGroupId: 1,
+            currentMeasurement: 1,
+            measurements: {
+              $filter: {
+                input: '$measurements',
+                cond: {
+                  $and: [
+                    { $gte: ['$$this.date', startDate] },
+                    { $lt: ['$$this.date', endDate] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ])
+      .exec();
+
+    return stations.map((station: StationEntity) => {
+      const measurement = station.measurements.slice(-1)[0];
+
+      return {
+        id: station?._id,
+        createdDate: station.createdDate,
+        location: {
+          name: station.location.name,
+          indoor: station.location.indoor,
+          city: station.location.city,
+          latitude: station.location.latitude,
+          longitude: station.location.longitude,
+        } as LocationDto,
+        currentMeasurement: this.buildMeasurement(measurement),
+        stationGroupId: station.stationGroupId,
+      } as StationResponseDto;
+    });
+  }
+
   async findById(id: string): Promise<StationResponseDto> {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
@@ -130,6 +305,7 @@ export class StationsService {
           $project: {
             location: 1,
             createdDate: 1,
+            stationGroupId: 1,
             measurements: {
               $filter: {
                 input: '$measurements',
@@ -161,6 +337,8 @@ export class StationsService {
         longitude: station.location.longitude,
       } as LocationDto,
       currentMeasurement: this.buildMeasurement(measurement),
+      measurements: station.measurements,
+      stationGroupId: station.stationGroupId,
     } as StationResponseDto;
   }
 
@@ -174,9 +352,7 @@ export class StationsService {
   async addMeasurement(
     id: string,
     measurementDto: Partial<MeasurementDto>,
-  ): Promise<StationEntity> {
-    console.log('measurementDto', measurementDto);
-
+  ): Promise<StationEntity | BadRequestException> {
     if ((measurementDto?.temperature || 0) > 0) {
       const measurement = {
         date: new Date(),
@@ -232,16 +408,31 @@ export class StationsService {
         );
       }
 
-      return station;
+      return await this.stationModel.findById(id).exec();
     }
 
-    return await this.stationModel.findById(id).exec();
+    throw new BadRequestException('Temperature cannot be 0 o null');
   }
 
   async delete(id: string) {
     return await this.stationModel
       .deleteOne({ _id: new Types.ObjectId(id) })
       .exec();
+  }
+
+  private buildMeasurement(
+    measurement: MeasurementDto,
+  ): Partial<MeasurementDto> {
+    if (measurement) {
+      return {
+        date: measurement.date,
+        temperature: measurement.temperature,
+        humidity: measurement.humidity,
+        airPressure: measurement.airPressure,
+      } as MeasurementDto;
+    }
+
+    return {};
   }
 
   private calculateArithmeticMean(numbers: number[]): number {
@@ -255,9 +446,5 @@ export class StationsService {
     const arithmeticMean = sum / itemsAmount;
 
     return arithmeticMean;
-  }
-
-  private getCurrentISOString(date: Date): string {
-    return date.toISOString();
   }
 }

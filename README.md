@@ -41,3 +41,14 @@ $ npm run start:dev
 # production mode
 $ npm run start:prod
 ```
+
+## Swagger
+
+With the application running you can access to the swagger ui from the url:
+
+```
+localhost:3000/api
+```
+
+
+
