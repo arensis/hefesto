@@ -129,8 +129,10 @@ export class StationGroupsService {
       const station: StationGroupEntity = await this.stationGroupModel
         .findByIdAndUpdate(
           { _id: new Types.ObjectId(id) },
-          { $set: { currentMeasurement: measurement } },
-          { $push: { measurements: measurement } },
+          {
+            $set: { currentMeasurement: measurement },
+            $push: { measurements: measurement },
+          },
         )
         .exec();
 
