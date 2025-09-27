@@ -311,6 +311,7 @@ export class StationsService {
       this.stationModel
         .updateOne(
           { _id: new Types.ObjectId(id) },
+          { $set: { currentMeasurement: measurement } },
           { $push: { measurements: measurement } },
         )
         .exec();
