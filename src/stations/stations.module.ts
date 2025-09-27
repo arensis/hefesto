@@ -1,4 +1,3 @@
-import { StationsService } from './services/stations.service';
 import { Module } from '@nestjs/common';
 import { StationsController } from './controllers/stations.controller';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -9,6 +8,7 @@ import {
 } from './database/station-group.entity';
 import { StationGroupsService } from './services/station-groups.service';
 import { StationGroupsController } from './controllers/stations-group.controller';
+import { StationsService } from './services/stations.service';
 
 @Module({
   imports: [

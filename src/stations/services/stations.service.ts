@@ -42,6 +42,7 @@ export class StationsService {
             location: 1,
             createdDate: 1,
             stationGroupId: 1,
+            currentMeasurement: 1,
             measurements: {
               $filter: {
                 input: '$measurements',
@@ -59,8 +60,6 @@ export class StationsService {
       .exec();
 
     const station = stationEntities[0];
-    const measurement = station.measurements.slice(-1)[0];
-    console.log('station', station);
 
     return {
       id: station?._id,
@@ -73,7 +72,7 @@ export class StationsService {
         longitude: station.location.longitude,
         measurements: station.measurements,
       } as LocationDto,
-      currentMeasurement: this.buildMeasurement(measurement),
+      currentMeasurement: this.buildMeasurement(station.currentMeasurement),
       stationGroupId: station.stationGroupId,
     } as StationResponseDto;
   }
@@ -91,12 +90,6 @@ export class StationsService {
   }
 
   async findAllNotGrouped(): Promise<StationResponseDto[]> {
-    const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
-    const startDate = new Date(date);
-    date.setDate(date.getDate() + 1);
-    const endDate = new Date(date);
-
     const stations = await this.stationModel
       .aggregate([
         {
@@ -112,25 +105,13 @@ export class StationsService {
             location: 1,
             createdDate: 1,
             stationGroupId: 1,
-            measurements: {
-              $filter: {
-                input: '$measurements',
-                cond: {
-                  $and: [
-                    { $gte: ['$$this.date', startDate] },
-                    { $lt: ['$$this.date', endDate] },
-                  ],
-                },
-              },
-            },
+            currentMeasurement: 1,
           },
         },
       ])
       .exec();
 
     return stations.map((station: StationEntity) => {
-      const measurement = station.measurements.slice(-1)[0];
-      console.log('measurement', measurement);
       return {
         id: station?._id,
         createdDate: station.createdDate,
@@ -141,19 +122,13 @@ export class StationsService {
           latitude: station.location.latitude,
           longitude: station.location.longitude,
         } as LocationDto,
-        currentMeasurement: this.buildMeasurement(measurement),
+        currentMeasurement: this.buildMeasurement(station.currentMeasurement),
         stationGroupId: station.stationGroupId,
       } as StationResponseDto;
     });
   }
 
   async findAll(): Promise<StationResponseDto[]> {
-    const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
-    const startDate = new Date(date);
-    date.setDate(date.getDate() + 1);
-    const endDate = new Date(date);
-
     const stations = await this.stationModel
       .aggregate([
         {
@@ -169,25 +144,13 @@ export class StationsService {
             location: 1,
             createdDate: 1,
             stationGroupId: 1,
-            measurements: {
-              $filter: {
-                input: '$measurements',
-                cond: {
-                  $and: [
-                    { $gte: ['$$this.date', startDate] },
-                    { $lt: ['$$this.date', endDate] },
-                  ],
-                },
-              },
-            },
+            currentMeasurement: 1,
           },
         },
       ])
       .exec();
 
     return stations.map((station: StationEntity) => {
-      const measurement = station.measurements.slice(-1)[0];
-      console.log('measurement', measurement);
       return {
         id: station?._id,
         createdDate: station.createdDate,
@@ -198,7 +161,7 @@ export class StationsService {
           latitude: station.location.latitude,
           longitude: station.location.longitude,
         } as LocationDto,
-        currentMeasurement: this.buildMeasurement(measurement),
+        currentMeasurement: this.buildMeasurement(station.currentMeasurement),
         stationGroupId: station.stationGroupId,
       } as StationResponseDto;
     });
@@ -242,11 +205,6 @@ export class StationsService {
   async findByStationGroupId(
     stationGroupId: string,
   ): Promise<StationResponseDto[]> {
-    const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
-    const startDate = new Date(date);
-    date.setDate(date.getDate() + 1);
-    const endDate = new Date(date);
     const stations: StationEntity[] = await this.stationModel
       .aggregate([
         { $match: { stationGroupId: stationGroupId } },
@@ -256,25 +214,12 @@ export class StationsService {
             createdDate: 1,
             stationGroupId: 1,
             currentMeasurement: 1,
-            measurements: {
-              $filter: {
-                input: '$measurements',
-                cond: {
-                  $and: [
-                    { $gte: ['$$this.date', startDate] },
-                    { $lt: ['$$this.date', endDate] },
-                  ],
-                },
-              },
-            },
           },
         },
       ])
       .exec();
 
     return stations.map((station: StationEntity) => {
-      const measurement = station.measurements.slice(-1)[0];
-
       return {
         id: station?._id,
         createdDate: station.createdDate,
@@ -285,7 +230,7 @@ export class StationsService {
           latitude: station.location.latitude,
           longitude: station.location.longitude,
         } as LocationDto,
-        currentMeasurement: this.buildMeasurement(measurement),
+        currentMeasurement: this.buildMeasurement(station.currentMeasurement),
         stationGroupId: station.stationGroupId,
       } as StationResponseDto;
     });

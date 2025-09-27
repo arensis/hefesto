@@ -10,6 +10,7 @@ import { LocationDto } from '../dto/location.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
 import { StationGroupDto } from '../dto/station.group.dto';
 import { StationsService } from './stations.service';
+import { MeasurementEntity } from '../database/model/measurement.entity';
 
 @Injectable()
 export class StationGroupsService {
@@ -21,12 +22,6 @@ export class StationGroupsService {
   ) {}
 
   async findAll(): Promise<StationGroupResponseDto[]> {
-    const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
-    const startDate = new Date(date);
-    date.setDate(date.getDate() + 1);
-    const endDate = new Date(date);
-
     const stationGroups = await this.stationGroupModel
       .aggregate([
         {
@@ -34,28 +29,19 @@ export class StationGroupsService {
             location: 1,
             createdDate: 1,
             stations: 1,
-            measurements: {
-              $filter: {
-                input: '$measurements',
-                cond: {
-                  $and: [
-                    { $gte: ['$$this.date', startDate] },
-                    { $lt: ['$$this.date', endDate] },
-                  ],
-                },
-              },
-            },
+            currentMeasurement: 1,
           },
         },
       ])
       .exec();
 
     return stationGroups.map((stationGroup: StationGroupEntity) => {
-      const measurement = stationGroup.measurements.slice(-1)[0];
-
       return {
         id: stationGroup?._id,
         createdDate: stationGroup.createdDate,
+        currentMeasurement: this.buildMeasurement(
+          stationGroup.currentMeasurement,
+        ),
         location: {
           name: stationGroup.location.name,
           indoor: stationGroup.location.indoor,
@@ -63,7 +49,6 @@ export class StationGroupsService {
           latitude: stationGroup.location.latitude,
           longitude: stationGroup.location.longitude,
         } as LocationDto,
-        currentMeasurement: this.buildMeasurement(measurement),
         stations: stationGroup.stations,
       } as StationGroupResponseDto;
     });
@@ -84,6 +69,7 @@ export class StationGroupsService {
             $project: {
               location: 1,
               createdDate: 1,
+              currentMeasurement: 1,
               measurements: {
                 $filter: {
                   input: '$measurements',
@@ -102,11 +88,13 @@ export class StationGroupsService {
         .exec();
 
     const stationGroup = stationGroupEntities[0];
-    const measurement = stationGroup.measurements.slice(-1)[0];
 
     return {
       id: stationGroup?._id,
       createdDate: stationGroup.createdDate,
+      currentMeasurement: this.buildMeasurement(
+        stationGroup.currentMeasurement,
+      ),
       location: {
         name: stationGroup.location.name,
         indoor: stationGroup.location.indoor,
@@ -114,7 +102,6 @@ export class StationGroupsService {
         latitude: stationGroup.location.latitude,
         longitude: stationGroup.location.longitude,
       } as LocationDto,
-      currentMeasurement: this.buildMeasurement(measurement),
       stations: stationGroup.stations,
     } as StationGroupResponseDto;
   }
@@ -142,6 +129,7 @@ export class StationGroupsService {
       const station: StationGroupEntity = await this.stationGroupModel
         .findByIdAndUpdate(
           { _id: new Types.ObjectId(id) },
+          { $set: { currentMeasurement: measurement } },
           { $push: { measurements: measurement } },
         )
         .exec();
@@ -153,12 +141,7 @@ export class StationGroupsService {
   }
 
   async addStation(id: string, stationId: string): Promise<StationGroupEntity> {
-    const station = await this.stationsService.updateStationGroupId(
-      stationId,
-      id,
-    );
-
-    console.log('updated station ', station);
+    await this.stationsService.updateStationGroupId(stationId, id);
 
     return await this.stationGroupModel.findByIdAndUpdate(
       { _id: new Types.ObjectId(id) },
@@ -173,7 +156,7 @@ export class StationGroupsService {
   }
 
   private buildMeasurement(
-    measurement: MeasurementDto,
+    measurement: MeasurementEntity,
   ): Partial<MeasurementDto> {
     if (measurement) {
       return {
