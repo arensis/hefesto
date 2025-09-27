@@ -29,8 +29,9 @@ export class StationEntity {
   @Type(() => String)
   stationGroupId?: string;
 
-  @ApiProperty({ type: MeasurementEntity })
+  @ApiProperty()
   @Prop({ type: MeasurementEntity })
+  @Type(() => MeasurementEntity)
   currentMeasurement: MeasurementEntity;
 
   @ApiProperty()
