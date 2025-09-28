@@ -137,7 +137,7 @@ export class StationGroupsService {
     stationGroup.markModified('currentMeasurement');
     stationGroup.markModified('measurements');
 
-    return stationGroup.save();
+    return await stationGroup.save();
   }
 
   buildGroupStationMeasurement(stations: StationEntity[]): MeasurementDto {
