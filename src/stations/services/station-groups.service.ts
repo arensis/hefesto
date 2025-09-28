@@ -1,5 +1,11 @@
 import { StationGroupResponseDto } from './../dto/station-group-response.dto';
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   StationGroupDocument,
@@ -11,6 +17,7 @@ import { MeasurementDto } from '../dto/measurement.dto';
 import { StationGroupDto } from '../dto/station.group.dto';
 import { StationsService } from './stations.service';
 import { MeasurementEntity } from '../database/model/measurement.entity';
+import { StationEntity } from '../database/model/station.entity';
 
 @Injectable()
 export class StationGroupsService {
@@ -22,20 +29,18 @@ export class StationGroupsService {
   ) {}
 
   async findAll(): Promise<StationGroupResponseDto[]> {
-    const stationGroups = await this.stationGroupModel
-      .aggregate([
-        {
-          $project: {
-            location: 1,
-            createdDate: 1,
-            stations: 1,
-            currentMeasurement: 1,
-          },
-        },
-      ])
+    const stationsGroups = await this.stationGroupModel
+      .find({
+        $or: [
+          { stationGroupId: { $exists: false } },
+          { stationGroupId: { $in: [null, ''] } },
+        ],
+      })
+      .select('-measurements') // 👈 excluir explícitamente
+      .lean()
       .exec();
 
-    return stationGroups.map((stationGroup: StationGroupEntity) => {
+    return stationsGroups.map((stationGroup: StationGroupEntity) => {
       return {
         id: stationGroup?._id,
         createdDate: stationGroup.createdDate,
@@ -116,30 +121,36 @@ export class StationGroupsService {
 
   async addMeasurement(
     id: string,
-    measurementDto: Partial<MeasurementDto>,
+    stations: StationEntity[],
   ): Promise<StationGroupEntity> {
-    if ((measurementDto?.temperature || 0) > 0) {
-      const measurement = {
-        date: new Date(),
-        temperature: measurementDto.temperature,
-        humidity: measurementDto.humidity,
-        airPressure: measurementDto.airPressure ?? 0,
-      } as MeasurementDto;
+    const groupMeasurement = this.buildGroupStationMeasurement(stations);
 
-      const station: StationGroupEntity = await this.stationGroupModel
-        .findByIdAndUpdate(
-          { _id: new Types.ObjectId(id) },
-          {
-            $set: { currentMeasurement: measurement },
-            $push: { measurements: measurement },
-          },
-        )
-        .exec();
-
-      return station;
+    if ((groupMeasurement?.temperature || 0) <= 0) {
+      throw new BadRequestException('Temperature cannot be 0 o null');
     }
 
-    return await this.stationGroupModel.findById(id).exec();
+    const stationGroup = await this.stationGroupModel.findById(id);
+    if (!stationGroup) throw new NotFoundException('Station group not found');
+
+    stationGroup.currentMeasurement = groupMeasurement;
+    stationGroup.measurements.push(groupMeasurement);
+
+    return stationGroup.save();
+  }
+
+  buildGroupStationMeasurement(stations: StationEntity[]): MeasurementDto {
+    const humidityMean: number = this.calculateStationsHumidityeMean(stations);
+    const temperatureMean: number =
+      this.calculateStationsTemperatureMean(stations);
+    const airPressureMean: number =
+      this.calculateStationsAirPressureMean(stations);
+
+    return {
+      date: new Date(),
+      temperature: temperatureMean,
+      humidity: humidityMean,
+      airPressure: airPressureMean ?? 0,
+    } as MeasurementDto;
   }
 
   async addStation(id: string, stationId: string): Promise<StationGroupEntity> {
@@ -170,5 +181,44 @@ export class StationGroupsService {
     }
 
     return {};
+  }
+
+  private calculateStationsTemperatureMean(stations: StationEntity[]): number {
+    const temperatures: number[] = stations
+      .map((station) => station.measurements[0].temperature)
+      .filter(
+        (value: number) => value !== null && value !== undefined && value > 0,
+      );
+
+    return this.calculateArithmeticMean(temperatures);
+  }
+
+  private calculateStationsHumidityeMean(stations: StationEntity[]): number {
+    const humidityMeasurements: number[] = stations.map(
+      (station) => station.measurements[0].humidity,
+    );
+
+    return this.calculateArithmeticMean(humidityMeasurements);
+  }
+
+  private calculateStationsAirPressureMean(stations: StationEntity[]): number {
+    const airPressureMeasurements: number[] = stations.map(
+      (station) => station.measurements[0].airPressure,
+    );
+
+    return this.calculateArithmeticMean(airPressureMeasurements);
+  }
+
+  private calculateArithmeticMean(numbers: number[]): number {
+    const itemsAmount = numbers.length;
+
+    if (itemsAmount === 0) {
+      return 0;
+    }
+
+    const sum = numbers.reduce((accumulator, value) => accumulator + value, 0);
+    const arithmeticMean = sum / itemsAmount;
+
+    return arithmeticMean;
   }
 }
