@@ -307,7 +307,7 @@ export class StationsService {
     station.markModified('currentMeasurement');
     station.markModified('measurements');
 
-    await station.save();
+    station.save();
 
     if (station.stationGroupId) {
       await this.updateStationGroup(station.stationGroupId);
