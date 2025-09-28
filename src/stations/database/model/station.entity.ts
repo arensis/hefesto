@@ -1,7 +1,10 @@
 import { LocationEntity, LocationEntitySchema } from './location.entity';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { MeasurementEntity, MeasurementEntitySchema } from './measurement.entity';
+import {
+  MeasurementEntity,
+  MeasurementEntitySchema,
+} from './measurement.entity';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 

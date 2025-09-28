@@ -16,7 +16,10 @@ import { LocationDto } from '../dto/location.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
 import { StationGroupDto } from '../dto/station.group.dto';
 import { StationsService } from './stations.service';
-import { MeasurementEntity } from '../database/model/measurement.entity';
+import {
+  MeasurementEntity,
+  MeasurementEntityDocument,
+} from '../database/model/measurement.entity';
 import { StationEntity } from '../database/model/station.entity';
 
 @Injectable()
@@ -24,6 +27,8 @@ export class StationGroupsService {
   constructor(
     @InjectModel(StationGroupEntity.name)
     private stationGroupModel: Model<StationGroupDocument>,
+    @InjectModel(MeasurementEntity.name)
+    private measurementModel: Model<MeasurementEntityDocument>,
     @Inject(forwardRef(() => StationsService))
     private stationsService: StationsService,
   ) {}
@@ -132,8 +137,10 @@ export class StationGroupsService {
     const stationGroup = await this.stationGroupModel.findById(id);
     if (!stationGroup) throw new NotFoundException('Station group not found');
 
-    stationGroup.currentMeasurement = groupMeasurement;
-    stationGroup.measurements.push(groupMeasurement);
+    stationGroup.currentMeasurement = { ...groupMeasurement };
+    stationGroup.measurements.push({ ...groupMeasurement });
+    stationGroup.markModified('currentMeasurement');
+    stationGroup.markModified('measurements');
 
     return stationGroup.save();
   }

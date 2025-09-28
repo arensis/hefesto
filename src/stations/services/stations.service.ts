@@ -1,3 +1,4 @@
+import { StationSchema } from './../database/model/station.entity';
 import { StationDto } from '../dto/station.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
 import {
@@ -15,12 +16,18 @@ import {
 import { LocationDto } from '../dto/location.dto';
 import { StationResponseDto } from '../dto/station-response.dto';
 import { StationGroupsService } from './station-groups.service';
+import {
+  MeasurementEntity,
+  MeasurementEntityDocument,
+} from '../database/model/measurement.entity';
 
 @Injectable()
 export class StationsService {
   constructor(
     @InjectModel(StationEntity.name)
     private stationModel: Model<StationDocument>,
+    @InjectModel(MeasurementEntity.name)
+    private measurementModel: Model<MeasurementEntityDocument>,
     @Inject(forwardRef(() => StationGroupsService))
     private readonly stationGroupsService: StationGroupsService,
   ) {}
@@ -297,11 +304,14 @@ export class StationsService {
       temperature: measurementDto.temperature,
       humidity: measurementDto.humidity,
       airPressure: measurementDto.airPressure ?? 0,
-    } as MeasurementDto;
+    };
 
     const station = await this.stationModel.findById(id);
-    station.currentMeasurement = measurement;
-    station.measurements.push(measurement);
+
+    station.currentMeasurement = { ...measurement };
+    station.measurements.push({ ...measurement });
+    station.markModified('currentMeasurement');
+    station.markModified('measurements');
 
     station.save();
 
