@@ -6,6 +6,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -301,6 +302,7 @@ export class StationsService {
     };
 
     const station = await this.stationModel.findById(id);
+    if (!station) throw new NotFoundException('Station not found');
 
     station.currentMeasurement = { ...measurement };
     station.measurements.push({ ...measurement });
