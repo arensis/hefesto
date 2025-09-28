@@ -26,7 +26,7 @@ export class StationEntity {
   measurements: MeasurementEntity[];
 
   @ApiProperty()
-  @Prop({ type: MeasurementEntitySchema })
+  @Prop({ type: MeasurementEntitySchema, default: {} })
   @Type(() => MeasurementEntity)
   currentMeasurement: MeasurementEntity;
 
