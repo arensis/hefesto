@@ -79,16 +79,27 @@ export class StationsService {
     } as StationResponseDto;
   }
 
-  async updateStationGroupId(
+  async addStationGroupId(
     id: string,
     stationGroupId: string,
   ): Promise<StationEntity> {
-    return this.stationModel
+    return await this.stationModel
       .findByIdAndUpdate(
         { _id: new Types.ObjectId(id) },
         { $set: { stationGroupId } },
       )
       .exec();
+  }
+
+  async deleteStationGroupId(id: string): Promise<StationEntity> {
+    await this.stationModel
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id) },
+        { $unset: { stationGroupId: 1 } },
+      )
+      .exec();
+
+    return this.stationModel.findById(id);
   }
 
   async findAllNotGrouped(): Promise<StationResponseDto[]> {

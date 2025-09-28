@@ -28,7 +28,7 @@ export class StationGroupEntity {
   @ApiProperty()
   @Prop({ type: MeasurementEntitySchema, default: {} })
   @Type(() => MeasurementEntity)
-  currentMeasurement: MeasurementEntity;
+  currentMeasurement?: MeasurementEntity;
 
   @ApiProperty({ type: String, isArray: true })
   @Prop({ type: String, isArray: true })

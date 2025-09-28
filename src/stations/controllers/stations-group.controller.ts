@@ -63,6 +63,18 @@ export class StationGroupsController {
     return this.stationGroupsService.addStation(id, stationId);
   }
 
+  @Delete('/:id/stations/:stationId')
+  @ApiOperation({ summary: 'Delete a station from the group' })
+  @ApiAcceptedResponse({
+    type: StationGroupEntity,
+  })
+  async deleteStation(
+    @Param('id') id: string,
+    @Param('stationId') stationId: string,
+  ): Promise<StationGroupEntity> {
+    return this.stationGroupsService.deleteStation(id, stationId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete station group' })
   @ApiAcceptedResponse()

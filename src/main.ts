@@ -6,7 +6,6 @@ import helmet from 'helmet';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
-  app.setGlobalPrefix('api/v1');
 
   // TODO: Only for dev mode
   app.enableCors({

@@ -6,20 +6,20 @@ export type MeasurementEntityDocument = HydratedDocument<MeasurementEntity>;
 
 @Schema()
 export class MeasurementEntity {
-  @ApiProperty()
-  @Prop()
+  @ApiProperty({ required: true })
+  @Prop({ required: true })
   date: Date;
 
-  @ApiProperty()
+  @ApiProperty({ required: true })
   @Prop({ required: true })
   temperature: number;
 
-  @ApiProperty()
-  @Prop()
+  @ApiProperty({ required: false })
+  @Prop({ required: false })
   humidity: number;
 
-  @ApiProperty()
-  @Prop()
+  @ApiProperty({ required: false })
+  @Prop({ required: false })
   airPressure: number;
 }
 

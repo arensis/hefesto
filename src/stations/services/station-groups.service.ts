@@ -156,11 +156,24 @@ export class StationGroupsService {
   }
 
   async addStation(id: string, stationId: string): Promise<StationGroupEntity> {
-    await this.stationsService.updateStationGroupId(stationId, id);
+    await this.stationsService.addStationGroupId(stationId, id);
 
     return await this.stationGroupModel.findByIdAndUpdate(
       { _id: new Types.ObjectId(id) },
       { $push: { stations: stationId } },
+    );
+  }
+
+  async deleteStation(
+    id: string,
+    stationId: string,
+  ): Promise<StationGroupEntity> {
+    const station = await this.stationsService.deleteStationGroupId(stationId);
+    console.log('[StationGroupsService] deleteStation: (station): ', station);
+
+    return await this.stationGroupModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id) },
+      { $pull: { stations: stationId } },
     );
   }
 

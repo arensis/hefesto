@@ -93,7 +93,7 @@ export class StationsController {
   })
   async addMeasurement(
     @Param('id') id: string,
-    @Body() measurementDto: Partial<MeasurementDto>,
+    @Body() measurementDto: MeasurementDto,
   ): Promise<StationEntity | BadRequestException> {
     return this.stationService.addMeasurement(id, measurementDto);
   }
