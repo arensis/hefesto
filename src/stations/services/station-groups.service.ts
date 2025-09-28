@@ -16,10 +16,7 @@ import { LocationDto } from '../dto/location.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
 import { StationGroupDto } from '../dto/station.group.dto';
 import { StationsService } from './stations.service';
-import {
-  MeasurementEntity,
-  MeasurementEntityDocument,
-} from '../database/model/measurement.entity';
+import { MeasurementEntity } from '../database/model/measurement.entity';
 import { StationEntity } from '../database/model/station.entity';
 
 @Injectable()
@@ -27,8 +24,6 @@ export class StationGroupsService {
   constructor(
     @InjectModel(StationGroupEntity.name)
     private stationGroupModel: Model<StationGroupDocument>,
-    @InjectModel(MeasurementEntity.name)
-    private measurementModel: Model<MeasurementEntityDocument>,
     @Inject(forwardRef(() => StationsService))
     private stationsService: StationsService,
   ) {}
