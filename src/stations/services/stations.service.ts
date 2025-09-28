@@ -63,6 +63,8 @@ export class StationsService {
 
     const station = stationEntities[0];
 
+    if (!station) throw new NotFoundException('Not found station ' + id);
+
     return {
       id: station?._id,
       createdDate: station.createdDate,
