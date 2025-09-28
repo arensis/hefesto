@@ -118,45 +118,6 @@ export class StationsService {
     });
   }
 
-  async findAllNotGrouped2(): Promise<StationResponseDto[]> {
-    const stations = await this.stationModel
-      .aggregate([
-        {
-          $match: {
-            $or: [
-              { stationGroupId: { $exists: false } },
-              { stationGroupId: { $in: [null, ''] } },
-            ],
-          },
-        },
-        {
-          $project: {
-            location: 1,
-            createdDate: 1,
-            stationGroupId: 1,
-            currentMeasurement: 1,
-          },
-        },
-      ])
-      .exec();
-
-    return stations.map((station: StationEntity) => {
-      return {
-        id: station?._id,
-        createdDate: station.createdDate,
-        location: {
-          name: station.location.name,
-          indoor: station.location.indoor,
-          city: station.location.city,
-          latitude: station.location.latitude,
-          longitude: station.location.longitude,
-        } as LocationDto,
-        currentMeasurement: this.buildMeasurement(station.currentMeasurement),
-        stationGroupId: station.stationGroupId,
-      } as StationResponseDto;
-    });
-  }
-
   async findAll(): Promise<StationResponseDto[]> {
     const stations = await this.stationModel
       .aggregate([

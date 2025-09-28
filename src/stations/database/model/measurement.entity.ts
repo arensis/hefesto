@@ -4,7 +4,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type MeasurementEntityDocument = HydratedDocument<MeasurementEntity>;
 
-@Schema({ collection: 'measurements' })
+@Schema()
 export class MeasurementEntity {
   @ApiProperty()
   @Prop()

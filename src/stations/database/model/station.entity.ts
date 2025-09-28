@@ -1,7 +1,7 @@
-import { LocationEntity } from './location.entity';
+import { LocationEntity, LocationEntitySchema } from './location.entity';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { MeasurementEntity } from './measurement.entity';
+import { MeasurementEntity, MeasurementEntitySchema } from './measurement.entity';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -14,14 +14,12 @@ export class StationEntity {
   createdDate: Date;
 
   @ApiProperty()
-  @Prop({ type: LocationEntity })
+  @Prop({ type: LocationEntitySchema })
   @Type(() => LocationEntity)
   location: LocationEntity;
 
   @ApiProperty({ type: MeasurementEntity, isArray: true })
-  @Prop({
-    childSchemas: [{ type: MeasurementEntity }],
-  })
+  @Prop({ type: [MeasurementEntitySchema], default: [] })
   measurements: MeasurementEntity[];
 
   @ApiProperty()
@@ -30,7 +28,7 @@ export class StationEntity {
   stationGroupId?: string;
 
   @ApiProperty()
-  @Prop({ type: MeasurementEntity })
+  @Prop({ type: MeasurementEntitySchema })
   @Type(() => MeasurementEntity)
   currentMeasurement: MeasurementEntity;
 
