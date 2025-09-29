@@ -36,7 +36,7 @@ export class StationsController {
     isArray: true,
   })
   async findAll(): Promise<StationResponseDto[]> {
-    return this.stationService.findAllNotGrouped();
+    return await this.stationService.findAllNotGrouped();
   }
 
   @Get(':id')
@@ -64,14 +64,14 @@ export class StationsController {
   @ApiOperation({ summary: 'Create a new station' })
   @ApiAcceptedResponse({ type: StationEntity })
   async create(@Body() stationDto: StationDto): Promise<StationEntity> {
-    return this.stationService.create(stationDto);
+    return await this.stationService.create(stationDto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete station' })
   @ApiAcceptedResponse()
   async delete(@Param('id') id: string) {
-    return this.stationService.delete(id);
+    return await this.stationService.delete(id);
   }
 
   @Get(':id/measurements')
@@ -83,7 +83,10 @@ export class StationsController {
     @Param('id') id: string,
     @Query() queryDto: DateQueryDto,
   ): Promise<MeasurementDto[]> {
-    return this.stationService.findMeasurementsBy(id, new Date(queryDto.date));
+    return await this.stationService.findMeasurementsBy(
+      id,
+      new Date(queryDto.date),
+    );
   }
 
   @Patch('/:id/measurements')
@@ -95,12 +98,6 @@ export class StationsController {
     @Param('id') id: string,
     @Body() measurementDto: MeasurementDto,
   ): Promise<StationResponseDto | BadRequestException> {
-    console.log('AddMeasurement');
-    const station = await this.stationService.addMeasurement(
-      id,
-      measurementDto,
-    );
-    console.log('recieving station saved', station);
-    return station;
+    return await this.stationService.addMeasurement(id, measurementDto);
   }
 }

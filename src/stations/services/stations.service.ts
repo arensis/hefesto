@@ -64,20 +64,7 @@ export class StationsService {
 
     if (!station) throw new NotFoundException('Not found station ' + id);
 
-    return {
-      id: station?._id,
-      createdDate: station.createdDate,
-      location: {
-        name: station.location.name,
-        indoor: station.location.indoor,
-        city: station.location.city,
-        latitude: station.location.latitude,
-        longitude: station.location.longitude,
-        measurements: station.measurements,
-      } as LocationDto,
-      currentMeasurement: this.buildMeasurement(station.currentMeasurement),
-      stationGroupId: station.stationGroupId,
-    } as StationResponseDto;
+    return this.mapStationResponseDto(station);
   }
 
   async addStationGroupId(
@@ -115,21 +102,9 @@ export class StationsService {
       .lean()
       .exec();
 
-    return stations.map((station: StationEntity) => {
-      return {
-        id: station?._id,
-        createdDate: station.createdDate,
-        location: {
-          name: station.location.name,
-          indoor: station.location.indoor,
-          city: station.location.city,
-          latitude: station.location.latitude,
-          longitude: station.location.longitude,
-        } as LocationDto,
-        currentMeasurement: this.buildMeasurement(station.currentMeasurement),
-        stationGroupId: station.stationGroupId,
-      } as StationResponseDto;
-    });
+    return stations.map((station: StationEntity) =>
+      this.mapStationResponseDto(station),
+    );
   }
 
   async findAll(): Promise<StationResponseDto[]> {
@@ -154,21 +129,9 @@ export class StationsService {
       ])
       .exec();
 
-    return stations.map((station: StationEntity) => {
-      return {
-        id: station?._id,
-        createdDate: station.createdDate,
-        location: {
-          name: station.location.name,
-          indoor: station.location.indoor,
-          city: station.location.city,
-          latitude: station.location.latitude,
-          longitude: station.location.longitude,
-        } as LocationDto,
-        currentMeasurement: this.buildMeasurement(station.currentMeasurement),
-        stationGroupId: station.stationGroupId,
-      } as StationResponseDto;
-    });
+    return stations.map((station: StationEntity) =>
+      this.mapStationResponseDto(station),
+    );
   }
 
   async findMeasurementsBy(
@@ -223,21 +186,9 @@ export class StationsService {
       ])
       .exec();
 
-    return stations.map((station: StationEntity) => {
-      return {
-        id: station?._id,
-        createdDate: station.createdDate,
-        location: {
-          name: station.location.name,
-          indoor: station.location.indoor,
-          city: station.location.city,
-          latitude: station.location.latitude,
-          longitude: station.location.longitude,
-        } as LocationDto,
-        currentMeasurement: this.buildMeasurement(station.currentMeasurement),
-        stationGroupId: station.stationGroupId,
-      } as StationResponseDto;
-    });
+    return stations.map((station: StationEntity) =>
+      this.mapStationResponseDto(station),
+    );
   }
 
   async findById(id: string): Promise<StationResponseDto> {
@@ -247,20 +198,7 @@ export class StationsService {
       .lean()
       .exec();
 
-    return {
-      id: station?._id,
-      createdDate: station.createdDate,
-      location: {
-        name: station.location.name,
-        indoor: station.location.indoor,
-        city: station.location.city,
-        latitude: station.location.latitude,
-        longitude: station.location.longitude,
-      } as LocationDto,
-      currentMeasurement: this.buildMeasurement(station.currentMeasurement),
-      measurements: station.measurements,
-      stationGroupId: station.stationGroupId,
-    } as StationResponseDto;
+    return this.mapStationResponseDto(station);
   }
 
   async create(stationDto: StationDto): Promise<StationEntity> {
@@ -286,7 +224,7 @@ export class StationsService {
       airPressure: measurementDto.airPressure ?? 0,
     };
 
-    await this.stationModel
+    const stationEntity: StationEntity = await this.stationModel
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id) },
         {
@@ -296,9 +234,7 @@ export class StationsService {
       )
       .exec();
 
-    const station = await this.findById(id);
-
-    return station;
+    return this.mapStationResponseDto(stationEntity);
   }
 
   async updateStationGroup(stationGroupId: string): Promise<void> {
@@ -328,5 +264,22 @@ export class StationsService {
     }
 
     return {};
+  }
+
+  private mapStationResponseDto(station: StationEntity): StationResponseDto {
+    return {
+      id: station?._id,
+      createdDate: station.createdDate,
+      location: {
+        name: station.location.name,
+        indoor: station.location.indoor,
+        city: station.location.city,
+        latitude: station.location.latitude,
+        longitude: station.location.longitude,
+      } as LocationDto,
+      currentMeasurement: this.buildMeasurement(station.currentMeasurement),
+      measurements: station.measurements,
+      stationGroupId: station.stationGroupId,
+    } as StationResponseDto;
   }
 }

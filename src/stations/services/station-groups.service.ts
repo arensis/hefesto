@@ -40,23 +40,9 @@ export class StationGroupsService {
       .lean()
       .exec();
 
-    return stationsGroups.map((stationGroup: StationGroupEntity) => {
-      return {
-        id: stationGroup?._id,
-        createdDate: stationGroup.createdDate,
-        currentMeasurement: this.buildMeasurement(
-          stationGroup.currentMeasurement,
-        ),
-        location: {
-          name: stationGroup.location.name,
-          indoor: stationGroup.location.indoor,
-          city: stationGroup.location.city,
-          latitude: stationGroup.location.latitude,
-          longitude: stationGroup.location.longitude,
-        } as LocationDto,
-        stations: stationGroup.stations,
-      } as StationGroupResponseDto;
-    });
+    return stationsGroups.map((stationGroup: StationGroupEntity) =>
+      this.mapStationGroupResponse(stationGroup),
+    );
   }
 
   async findById(id: string): Promise<StationGroupResponseDto> {
@@ -94,21 +80,7 @@ export class StationGroupsService {
 
     const stationGroup = stationGroupEntities[0];
 
-    return {
-      id: stationGroup?._id,
-      createdDate: stationGroup.createdDate,
-      currentMeasurement: this.buildMeasurement(
-        stationGroup.currentMeasurement,
-      ),
-      location: {
-        name: stationGroup.location.name,
-        indoor: stationGroup.location.indoor,
-        city: stationGroup.location.city,
-        latitude: stationGroup.location.latitude,
-        longitude: stationGroup.location.longitude,
-      } as LocationDto,
-      stations: stationGroup.stations,
-    } as StationGroupResponseDto;
+    return this.mapStationGroupResponse(stationGroup);
   }
 
   async create(stationGroupDto: StationGroupDto): Promise<StationGroupEntity> {
@@ -239,5 +211,25 @@ export class StationGroupsService {
     const arithmeticMean = sum / itemsAmount;
 
     return arithmeticMean;
+  }
+
+  private mapStationGroupResponse(
+    stationGroup: StationGroupEntity,
+  ): StationGroupResponseDto {
+    return {
+      id: stationGroup?._id,
+      createdDate: stationGroup.createdDate,
+      currentMeasurement: this.buildMeasurement(
+        stationGroup.currentMeasurement,
+      ),
+      location: {
+        name: stationGroup.location.name,
+        indoor: stationGroup.location.indoor,
+        city: stationGroup.location.city,
+        latitude: stationGroup.location.latitude,
+        longitude: stationGroup.location.longitude,
+      } as LocationDto,
+      stations: stationGroup.stations,
+    } as StationGroupResponseDto;
   }
 }
