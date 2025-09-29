@@ -89,12 +89,18 @@ export class StationsController {
   @Patch('/:id/measurements')
   @ApiOperation({ summary: 'Add a new measurement to an specific station' })
   @ApiAcceptedResponse({
-    type: StationEntity,
+    type: StationResponseDto,
   })
   async addMeasurement(
     @Param('id') id: string,
     @Body() measurementDto: MeasurementDto,
-  ): Promise<StationEntity | BadRequestException> {
-    return this.stationService.addMeasurement(id, measurementDto);
+  ): Promise<StationResponseDto | BadRequestException> {
+    console.log('AddMeasurement');
+    const station = await this.stationService.addMeasurement(
+      id,
+      measurementDto,
+    );
+    console.log('recieving station saved', station);
+    return station;
   }
 }

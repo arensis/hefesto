@@ -1,4 +1,3 @@
-import { StationSchema } from './../database/model/station.entity';
 import { StationDto } from '../dto/station.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
 import {
@@ -112,7 +111,7 @@ export class StationsService {
           { stationGroupId: { $in: [null, ''] } },
         ],
       })
-      .select('-measurements') // 👈 excluir explícitamente
+      .select('-measurements')
       .lean()
       .exec();
 
@@ -242,39 +241,11 @@ export class StationsService {
   }
 
   async findById(id: string): Promise<StationResponseDto> {
-    const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
-    const startDate = new Date(date);
-    date.setDate(date.getDate() + 1);
-    const endDate = new Date(date);
-
-    const stationEntities: StationEntity[] = await this.stationModel
-      .aggregate([
-        { $match: { _id: new Types.ObjectId(id) } },
-        {
-          $project: {
-            location: 1,
-            createdDate: 1,
-            stationGroupId: 1,
-            measurements: {
-              $filter: {
-                input: '$measurements',
-                cond: {
-                  $and: [
-                    { $gte: ['$$this.date', startDate] },
-                    { $lt: ['$$this.date', endDate] },
-                  ],
-                },
-              },
-            },
-          },
-        },
-      ])
+    const station = await this.stationModel
+      .findById(id)
+      .select('-measurements')
+      .lean()
       .exec();
-
-    const station = stationEntities[0];
-    const measurement = station.measurements.slice(-1)[0];
-    console.log('station', station);
 
     return {
       id: station?._id,
@@ -286,7 +257,7 @@ export class StationsService {
         latitude: station.location.latitude,
         longitude: station.location.longitude,
       } as LocationDto,
-      currentMeasurement: this.buildMeasurement(measurement),
+      currentMeasurement: this.buildMeasurement(station.currentMeasurement),
       measurements: station.measurements,
       stationGroupId: station.stationGroupId,
     } as StationResponseDto;
@@ -302,7 +273,8 @@ export class StationsService {
   async addMeasurement(
     id: string,
     measurementDto: Partial<MeasurementDto>,
-  ): Promise<StationEntity> {
+  ): Promise<StationResponseDto> {
+    console.log('Checking is is valid measurement');
     if ((measurementDto?.temperature || 0) <= 0) {
       throw new BadRequestException('Temperature cannot be 0 o null');
     }
@@ -314,19 +286,15 @@ export class StationsService {
       airPressure: measurementDto.airPressure ?? 0,
     };
 
-    const station = await this.stationModel.findById(id);
-    if (!station) throw new NotFoundException('Station not found');
+    await this.stationModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id) },
+      {
+        $set: { currentMeasurement: measurement },
+        $push: { measurements: measurement },
+      },
+    );
 
-    station.currentMeasurement = { ...measurement };
-    station.measurements.push({ ...measurement });
-    station.markModified('currentMeasurement');
-    station.markModified('measurements');
-
-    station.save();
-
-    if (station.stationGroupId) {
-      await this.updateStationGroup(station.stationGroupId);
-    }
+    const station = await this.findById(id);
 
     return station;
   }
