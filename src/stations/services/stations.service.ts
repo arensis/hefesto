@@ -286,13 +286,15 @@ export class StationsService {
       airPressure: measurementDto.airPressure ?? 0,
     };
 
-    await this.stationModel.findOneAndUpdate(
-      { _id: new Types.ObjectId(id) },
-      {
-        $set: { currentMeasurement: measurement },
-        $push: { measurements: measurement },
-      },
-    );
+    await this.stationModel
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id) },
+        {
+          $set: { currentMeasurement: measurement },
+          $push: { measurements: measurement },
+        },
+      )
+      .exec();
 
     const station = await this.findById(id);
 
