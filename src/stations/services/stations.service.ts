@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import {
   StationEntity,
   StationDocument,
@@ -35,32 +35,29 @@ export class StationsService {
     date.setDate(date.getDate() + 1);
     const endDate = new Date(date);
 
-    const stationEntities: StationEntity[] = await this.stationModel
-      .aggregate([
-        { $match: { _id: new Types.ObjectId(id) } },
+    const station = await this.stationModel
+      .findOne(
+        { _id: id },
         {
-          $project: {
-            location: 1,
-            createdDate: 1,
-            stationGroupId: 1,
-            currentMeasurement: 1,
-            measurements: {
-              $filter: {
-                input: '$measurements',
-                cond: {
-                  $and: [
-                    { $gte: ['$$this.date', startDate] },
-                    { $lt: ['$$this.date', endDate] },
-                  ],
-                },
+          location: 1,
+          createdDate: 1,
+          stationGroupId: 1,
+          currentMeasurement: 1,
+          measurements: {
+            $filter: {
+              input: '$measurements',
+              as: 'm',
+              cond: {
+                $and: [
+                  { $gte: ['$$m.date', startDate] },
+                  { $lt: ['$$m.date', endDate] },
+                ],
               },
             },
           },
         },
-      ])
-      .exec();
-
-    const station = stationEntities[0];
+      )
+      .lean();
 
     if (!station) throw new NotFoundException('Not found station ' + id);
 
@@ -71,23 +68,27 @@ export class StationsService {
     id: string,
     stationGroupId: string,
   ): Promise<StationEntity> {
-    return await this.stationModel
-      .findByIdAndUpdate(
-        { _id: new Types.ObjectId(id) },
-        { $set: { stationGroupId } },
-      )
-      .exec();
+    const updatedStation = await this.stationModel
+      .findByIdAndUpdate(id, { $set: { stationGroupId } }, { new: true })
+      .lean();
+
+    if (!updatedStation) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return updatedStation as StationEntity;
   }
 
   async deleteStationGroupId(id: string): Promise<StationEntity> {
-    await this.stationModel
-      .findOneAndUpdate(
-        { _id: new Types.ObjectId(id) },
-        { $unset: { stationGroupId: 1 } },
-      )
-      .exec();
+    const updatedStation = await this.stationModel
+      .findByIdAndUpdate(id, { $unset: { stationGroupId: 1 } }, { new: true })
+      .lean();
 
-    return this.stationModel.findById(id);
+    if (!updatedStation) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return updatedStation as StationEntity;
   }
 
   async findAllNotGrouped(): Promise<StationResponseDto[]> {
@@ -95,12 +96,11 @@ export class StationsService {
       .find({
         $or: [
           { stationGroupId: { $exists: false } },
-          { stationGroupId: { $in: [null, ''] } },
+          { stationGroupId: { $in: [null, '', undefined] } },
         ],
       })
       .select('-measurements')
-      .lean()
-      .exec();
+      .lean();
 
     return stations.map((station: StationEntity) =>
       this.mapStationResponseDto(station),
@@ -109,25 +109,11 @@ export class StationsService {
 
   async findAll(): Promise<StationResponseDto[]> {
     const stations = await this.stationModel
-      .aggregate([
-        {
-          $match: {
-            $or: [
-              { stationGroupId: { $exists: false } },
-              { stationGroupId: { $in: [null, ''] } },
-            ],
-          },
-        },
-        {
-          $project: {
-            location: 1,
-            createdDate: 1,
-            stationGroupId: 1,
-            currentMeasurement: 1,
-          },
-        },
-      ])
-      .exec();
+      .find({
+        stationsGroupId: { $in: [null, '', undefined] },
+      })
+      .select('location createdDate stationGroupId currentMeasurement')
+      .lean();
 
     return stations.map((station: StationEntity) =>
       this.mapStationResponseDto(station),
@@ -145,46 +131,36 @@ export class StationsService {
     const endDate = new Date(date);
 
     const station = await this.stationModel
-      .aggregate([
-        { $match: { _id: new Types.ObjectId(stationId) } },
+      .findOne(
+        { _id: stationId },
         {
-          $project: {
-            _id: 0,
-            measurements: {
-              $filter: {
-                input: '$measurements',
-                cond: {
-                  $and: [
-                    { $gte: ['$$this.date', startDate] },
-                    { $lt: ['$$this.date', endDate] },
-                  ],
-                },
+          _id: 0,
+          measurements: {
+            $filter: {
+              input: '$measurements',
+              as: 'm',
+              cond: {
+                $and: [
+                  { $gte: ['$$m.date', startDate] },
+                  { $lt: ['$$m.date', endDate] },
+                ],
               },
             },
           },
         },
-      ])
-      .exec();
+      )
+      .lean();
 
-    return station[0]?.measurements;
+    return station?.measurements || [];
   }
 
   async findByStationGroupId(
     stationGroupId: string,
   ): Promise<StationResponseDto[]> {
-    const stations: StationEntity[] = await this.stationModel
-      .aggregate([
-        { $match: { stationGroupId: stationGroupId } },
-        {
-          $project: {
-            location: 1,
-            createdDate: 1,
-            stationGroupId: 1,
-            currentMeasurement: 1,
-          },
-        },
-      ])
-      .exec();
+    const stations = await this.stationModel
+      .find({ stationGroupId })
+      .select('location createdDate stationGroupId currentMeasurement')
+      .lean();
 
     return stations.map((station: StationEntity) =>
       this.mapStationResponseDto(station),
@@ -212,7 +188,6 @@ export class StationsService {
     id: string,
     measurementDto: Partial<MeasurementDto>,
   ): Promise<StationResponseDto> {
-    console.log('Checking is is valid measurement');
     if ((measurementDto?.temperature || 0) <= 0) {
       throw new BadRequestException('Temperature cannot be 0 o null');
     }
@@ -224,31 +199,45 @@ export class StationsService {
       airPressure: measurementDto.airPressure ?? 0,
     };
 
-    const stationEntity: StationEntity = await this.stationModel
+    const updatedStation = await this.stationModel
       .findOneAndUpdate(
-        { _id: new Types.ObjectId(id) },
+        { _id: id },
         {
           $set: { currentMeasurement: measurement },
           $push: { measurements: measurement },
         },
+        { new: true },
       )
-      .exec();
+      .lean();
 
-    return this.mapStationResponseDto(stationEntity);
+    if (!updatedStation) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return this.mapStationResponseDto(updatedStation);
   }
 
   async updateStationGroup(stationGroupId: string): Promise<void> {
-    const stations: StationEntity[] = await this.stationModel
-      .find({ stationGroupId: new Types.ObjectId(stationGroupId) })
-      .exec();
+    // const stations: StationEntity[] = await this.stationModel
+    //   .find({ stationGroupId: new Types.ObjectId(stationGroupId) })
+    //   .exec();
+
+    const stations = await this.stationModel
+      .find({ stationGroupId })
+      .select('currentMeasurement')
+      .lean();
 
     await this.stationGroupsService.addMeasurement(stationGroupId, stations);
   }
 
   async delete(id: string) {
-    return await this.stationModel
-      .deleteOne({ _id: new Types.ObjectId(id) })
-      .exec();
+    const result = await this.stationModel.deleteOne({ _id: id });
+
+    if (result.deletedCount === 0) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return result;
   }
 
   private buildMeasurement(

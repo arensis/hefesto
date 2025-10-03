@@ -33,12 +33,11 @@ export class StationGroupsService {
       .find({
         $or: [
           { stationGroupId: { $exists: false } },
-          { stationGroupId: { $in: [null, ''] } },
+          { stationGroupId: { $in: [null, '', undefined] } },
         ],
       })
-      .select('-measurements') // 👈 excluir explícitamente
-      .lean()
-      .exec();
+      .select('-measurements')
+      .lean();
 
     return stationsGroups.map((stationGroup: StationGroupEntity) =>
       this.mapStationGroupResponse(stationGroup),
@@ -52,33 +51,29 @@ export class StationGroupsService {
     date.setDate(date.getDate() + 1);
     const endDate = new Date(date);
 
-    const stationGroupEntities: StationGroupEntity[] =
-      await this.stationGroupModel
-        .aggregate([
-          { $match: { _id: new Types.ObjectId(id) } },
-          {
-            $project: {
-              location: 1,
-              createdDate: 1,
-              currentMeasurement: 1,
-              measurements: {
-                $filter: {
-                  input: '$measurements',
-                  cond: {
-                    $and: [
-                      { $gte: ['$$this.date', startDate] },
-                      { $lt: ['$$this.date', endDate] },
-                    ],
-                  },
-                },
+    const stationGroup = await this.stationGroupModel
+      .findOne(
+        { _id: new Types.ObjectId(id) },
+        {
+          location: 1,
+          createdDate: 1,
+          currentMeasurement: 1,
+          stations: 1,
+          measurements: {
+            $filter: {
+              input: '$measurements',
+              as: 'm',
+              cond: {
+                $and: [
+                  { $gte: ['$$m.date', startDate] },
+                  { $lt: ['$$m.date', endDate] },
+                ],
               },
-              stations: 1,
             },
           },
-        ])
-        .exec();
-
-    const stationGroup = stationGroupEntities[0];
+        },
+      )
+      .lean();
 
     return this.mapStationGroupResponse(stationGroup);
   }
@@ -98,18 +93,25 @@ export class StationGroupsService {
     const groupMeasurement = this.buildGroupStationMeasurement(stations);
 
     if ((groupMeasurement?.temperature || 0) <= 0) {
-      throw new BadRequestException('Temperature cannot be 0 o null');
+      throw new BadRequestException('Temperature cannot be 0 or null');
     }
 
-    const stationGroup = await this.stationGroupModel.findById(id);
-    if (!stationGroup) throw new NotFoundException('Station group not found');
+    const updated = await this.stationGroupModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $set: { currentMeasurement: groupMeasurement },
+          $push: { measurements: groupMeasurement },
+        },
+        { new: true, lean: true },
+      )
+      .lean();
 
-    stationGroup.currentMeasurement = { ...groupMeasurement };
-    stationGroup.measurements.push({ ...groupMeasurement });
-    stationGroup.markModified('currentMeasurement');
-    stationGroup.markModified('measurements');
+    if (!updated) {
+      throw new NotFoundException('Station group not found');
+    }
 
-    return await stationGroup.save();
+    return updated as StationGroupEntity;
   }
 
   buildGroupStationMeasurement(stations: StationEntity[]): MeasurementDto {
@@ -130,12 +132,19 @@ export class StationGroupsService {
   async addStation(id: string, stationId: string): Promise<StationGroupEntity> {
     await this.stationsService.addStationGroupId(stationId, id);
 
-    return await this.stationGroupModel
+    const updatedGroup = await this.stationGroupModel
       .findByIdAndUpdate(
-        { _id: new Types.ObjectId(id) },
-        { $push: { stations: stationId } },
+        id,
+        { $addToSet: { stations: stationId } },
+        { new: true },
       )
-      .exec();
+      .lean();
+
+    if (!updatedGroup) {
+      throw new NotFoundException(`Station group ${id} not found`);
+    }
+
+    return updatedGroup as StationGroupEntity;
   }
 
   async deleteStation(
@@ -143,20 +152,30 @@ export class StationGroupsService {
     stationId: string,
   ): Promise<StationGroupEntity> {
     const station = await this.stationsService.deleteStationGroupId(stationId);
-    console.log('[StationGroupsService] deleteStation: (station): ', station);
 
-    return await this.stationGroupModel
-      .findOneAndUpdate(
-        { _id: new Types.ObjectId(id) },
-        { $pull: { stations: stationId } },
-      )
-      .exec();
+    if (!station) {
+      throw new NotFoundException(`Station ${stationId} not found`);
+    }
+
+    const updatedGroup = await this.stationGroupModel
+      .findByIdAndUpdate(id, { $pull: { stations: stationId } }, { new: true })
+      .lean();
+
+    if (!updatedGroup) {
+      throw new NotFoundException(`Station group ${id} not found`);
+    }
+
+    return updatedGroup as StationGroupEntity;
   }
 
   async delete(id: string) {
-    return await this.stationGroupModel
-      .deleteOne({ _id: new Types.ObjectId(id) })
-      .exec();
+    const result = await this.stationGroupModel.deleteOne({ _id: id });
+
+    if (result.deletedCount === 0) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return result;
   }
 
   private buildMeasurement(
@@ -176,7 +195,7 @@ export class StationGroupsService {
 
   private calculateStationsTemperatureMean(stations: StationEntity[]): number {
     const temperatures: number[] = stations
-      .map((station) => station.measurements[0].temperature)
+      .map((station) => station.currentMeasurement.temperature)
       .filter(
         (value: number) => value !== null && value !== undefined && value > 0,
       );
@@ -186,7 +205,7 @@ export class StationGroupsService {
 
   private calculateStationsHumidityeMean(stations: StationEntity[]): number {
     const humidityMeasurements: number[] = stations.map(
-      (station) => station.measurements[0].humidity,
+      (station) => station.currentMeasurement.humidity,
     );
 
     return this.calculateArithmeticMean(humidityMeasurements);
@@ -194,7 +213,7 @@ export class StationGroupsService {
 
   private calculateStationsAirPressureMean(stations: StationEntity[]): number {
     const airPressureMeasurements: number[] = stations.map(
-      (station) => station.measurements[0].airPressure,
+      (station) => station.currentMeasurement.airPressure,
     );
 
     return this.calculateArithmeticMean(airPressureMeasurements);
