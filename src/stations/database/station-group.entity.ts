@@ -4,9 +4,9 @@ import { HydratedDocument } from 'mongoose';
 import { Type } from 'class-transformer';
 import { LocationEntitySchema, LocationEntity } from './model/location.entity';
 import {
-  MeasurementEntity,
-  MeasurementEntitySchema,
-} from './model/measurement.entity';
+  StationMeasurementEntity,
+  StationMeasurementEntitySchema,
+} from './model/station-measurement.entity';
 
 export type StationGroupDocument = HydratedDocument<StationGroupEntity>;
 
@@ -21,14 +21,10 @@ export class StationGroupEntity {
   @Type(() => LocationEntity)
   location: LocationEntity;
 
-  @ApiProperty({ type: MeasurementEntity, isArray: true })
-  @Prop({ type: [MeasurementEntitySchema], default: [] })
-  measurements: MeasurementEntity[];
-
   @ApiProperty()
-  @Prop({ type: MeasurementEntitySchema, default: {} })
-  @Type(() => MeasurementEntity)
-  currentMeasurement?: MeasurementEntity;
+  @Prop({ type: StationMeasurementEntitySchema, default: {} })
+  @Type(() => StationMeasurementEntity)
+  currentMeasurement?: StationMeasurementEntity;
 
   @ApiProperty({ type: String, isArray: true })
   @Prop({ type: String, isArray: true })

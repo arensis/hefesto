@@ -16,8 +16,9 @@ import { LocationDto } from '../dto/location.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
 import { StationGroupDto } from '../dto/station.group.dto';
 import { StationsService } from './stations.service';
-import { MeasurementEntity } from '../database/model/measurement.entity';
 import { StationEntity } from '../database/model/station.entity';
+import { StationMeasurementEntity } from '../database/model/station-measurement.entity';
+import { StationMeasurementDto } from '../dto/station-measurement.dto';
 
 @Injectable()
 export class StationGroupsService {
@@ -36,7 +37,6 @@ export class StationGroupsService {
           { stationGroupId: { $in: [null, '', undefined] } },
         ],
       })
-      .select('-measurements')
       .lean();
 
     return stationsGroups.map((stationGroup: StationGroupEntity) =>
@@ -45,12 +45,6 @@ export class StationGroupsService {
   }
 
   async findById(id: string): Promise<StationGroupResponseDto> {
-    const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
-    const startDate = new Date(date);
-    date.setDate(date.getDate() + 1);
-    const endDate = new Date(date);
-
     const stationGroup = await this.stationGroupModel
       .findOne(
         { _id: new Types.ObjectId(id) },
@@ -59,18 +53,6 @@ export class StationGroupsService {
           createdDate: 1,
           currentMeasurement: 1,
           stations: 1,
-          measurements: {
-            $filter: {
-              input: '$measurements',
-              as: 'm',
-              cond: {
-                $and: [
-                  { $gte: ['$$m.date', startDate] },
-                  { $lt: ['$$m.date', endDate] },
-                ],
-              },
-            },
-          },
         },
       )
       .lean();
@@ -80,14 +62,23 @@ export class StationGroupsService {
 
   async create(stationGroupDto: StationGroupDto): Promise<StationGroupEntity> {
     stationGroupDto.createdDate = new Date();
-    stationGroupDto.measurements = [];
     stationGroupDto.stationsId = [];
 
     return await this.stationGroupModel.create(stationGroupDto);
   }
 
+  async updateStationGroup(
+    stationGroupId: string,
+  ): Promise<StationGroupEntity> {
+    const stations = await this.stationsService.findEntitiesByStationGroupId(
+      stationGroupId,
+    );
+
+    return await this.addMeasurement(stationGroupId, stations);
+  }
+
   async addMeasurement(
-    id: string,
+    stationGroupId: string,
     stations: StationEntity[],
   ): Promise<StationGroupEntity> {
     const groupMeasurement = this.buildGroupStationMeasurement(stations);
@@ -98,10 +89,11 @@ export class StationGroupsService {
 
     const updated = await this.stationGroupModel
       .findByIdAndUpdate(
-        id,
+        {
+          _id: stationGroupId,
+        },
         {
           $set: { currentMeasurement: groupMeasurement },
-          $push: { measurements: groupMeasurement },
         },
         { new: true, lean: true },
       )
@@ -129,26 +121,33 @@ export class StationGroupsService {
     } as MeasurementDto;
   }
 
-  async addStation(id: string, stationId: string): Promise<StationGroupEntity> {
-    await this.stationsService.addStationGroupId(stationId, id);
+  async addStation(
+    stationGroupId: string,
+    stationId: string,
+  ): Promise<StationGroupEntity> {
+    await this.stationsService.addStationGroupId(stationId, stationGroupId);
 
-    const updatedGroup = await this.stationGroupModel
+    await this.stationGroupModel
       .findByIdAndUpdate(
-        id,
+        {
+          _id: stationGroupId,
+        },
         { $addToSet: { stations: stationId } },
         { new: true },
       )
       .lean();
 
+    const updatedGroup = await this.updateStationGroup(stationGroupId);
+
     if (!updatedGroup) {
-      throw new NotFoundException(`Station group ${id} not found`);
+      throw new NotFoundException(`Station group ${stationGroupId} not found`);
     }
 
     return updatedGroup as StationGroupEntity;
   }
 
   async deleteStation(
-    id: string,
+    stationGroupId: string,
     stationId: string,
   ): Promise<StationGroupEntity> {
     const station = await this.stationsService.deleteStationGroupId(stationId);
@@ -157,12 +156,20 @@ export class StationGroupsService {
       throw new NotFoundException(`Station ${stationId} not found`);
     }
 
-    const updatedGroup = await this.stationGroupModel
-      .findByIdAndUpdate(id, { $pull: { stations: stationId } }, { new: true })
+    await this.stationGroupModel
+      .findByIdAndUpdate(
+        {
+          _id: stationGroupId,
+        },
+        { $pull: { stations: stationId } },
+        { new: true },
+      )
       .lean();
 
+    const updatedGroup = await this.updateStationGroup(stationGroupId);
+
     if (!updatedGroup) {
-      throw new NotFoundException(`Station group ${id} not found`);
+      throw new NotFoundException(`Station group ${stationGroupId} not found`);
     }
 
     return updatedGroup as StationGroupEntity;
@@ -179,15 +186,15 @@ export class StationGroupsService {
   }
 
   private buildMeasurement(
-    measurement: MeasurementEntity,
-  ): Partial<MeasurementDto> {
+    measurement: StationMeasurementEntity,
+  ): Partial<StationMeasurementDto> {
     if (measurement) {
       return {
         date: measurement.date,
         temperature: measurement.temperature,
         humidity: measurement.humidity,
         airPressure: measurement.airPressure,
-      } as MeasurementDto;
+      } as StationMeasurementDto;
     }
 
     return {};

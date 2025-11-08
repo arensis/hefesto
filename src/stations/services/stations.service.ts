@@ -16,6 +16,9 @@ import {
 import { LocationDto } from '../dto/location.dto';
 import { StationResponseDto } from '../dto/station-response.dto';
 import { StationGroupsService } from './station-groups.service';
+import { StationMeasurementsService } from './station-measurements.service';
+import { StationMeasurementEntity } from '../database/model/station-measurement.entity';
+import { StationMeasurementDto } from '../dto/station-measurement.dto';
 
 @Injectable()
 export class StationsService {
@@ -24,6 +27,8 @@ export class StationsService {
     private stationModel: Model<StationDocument>,
     @Inject(forwardRef(() => StationGroupsService))
     private readonly stationGroupsService: StationGroupsService,
+    @Inject(forwardRef(() => StationMeasurementsService))
+    private readonly stationMeasurementsService: StationMeasurementsService,
   ) {}
 
   async findByIdWithCurrentDayMeasurements(
@@ -80,6 +85,7 @@ export class StationsService {
   }
 
   async deleteStationGroupId(id: string): Promise<StationEntity> {
+    // TODO: Borrar mediciones de station group (transaccionalidad)
     const updatedStation = await this.stationModel
       .findByIdAndUpdate(id, { $unset: { stationGroupId: 1 } }, { new: true })
       .lean();
@@ -124,34 +130,15 @@ export class StationsService {
     stationId: string,
     measurementDate: Date,
   ): Promise<MeasurementDto[]> {
-    const date = new Date(measurementDate);
-    date.setUTCHours(0, 0, 0, 0);
-    const startDate = new Date(date);
-    date.setDate(date.getDate() + 1);
-    const endDate = new Date(date);
+    const measurements =
+      await this.stationMeasurementsService.findMeasurementsByDay(
+        stationId,
+        measurementDate,
+      );
 
-    const station = await this.stationModel
-      .findOne(
-        { _id: stationId },
-        {
-          _id: 0,
-          measurements: {
-            $filter: {
-              input: '$measurements',
-              as: 'm',
-              cond: {
-                $and: [
-                  { $gte: ['$$m.date', startDate] },
-                  { $lt: ['$$m.date', endDate] },
-                ],
-              },
-            },
-          },
-        },
-      )
-      .lean();
-
-    return station?.measurements || [];
+    return measurements.map((entity: StationMeasurementEntity) =>
+      this.mapStationMeasurementDto(entity),
+    );
   }
 
   async findByStationGroupId(
@@ -167,6 +154,15 @@ export class StationsService {
     );
   }
 
+  async findEntitiesByStationGroupId(
+    stationGroupId: string,
+  ): Promise<StationEntity[]> {
+    return await this.stationModel
+      .find({ stationGroupId })
+      .select('location createdDate stationGroupId currentMeasurement')
+      .lean();
+  }
+
   async findById(id: string): Promise<StationResponseDto> {
     const station = await this.stationModel
       .findById(id)
@@ -179,13 +175,12 @@ export class StationsService {
 
   async create(stationDto: StationDto): Promise<StationEntity> {
     stationDto.createdDate = new Date();
-    stationDto.measurements = [];
 
     return await this.stationModel.create(stationDto);
   }
 
   async addMeasurement(
-    id: string,
+    stationId: string,
     measurementDto: Partial<MeasurementDto>,
   ): Promise<StationResponseDto> {
     if ((measurementDto?.temperature || 0) <= 0) {
@@ -199,38 +194,28 @@ export class StationsService {
       airPressure: measurementDto.airPressure ?? 0,
     };
 
+    await this.stationMeasurementsService.create(stationId, measurement);
+
     const updatedStation = await this.stationModel
       .findOneAndUpdate(
-        { _id: id },
+        { _id: stationId },
         {
           $set: { currentMeasurement: measurement },
-          $push: { measurements: measurement },
         },
         { new: true },
       )
       .lean();
 
     if (!updatedStation) {
-      throw new NotFoundException(`Station ${id} not found`);
+      throw new NotFoundException(`Station ${stationId} not found`);
     }
 
     return this.mapStationResponseDto(updatedStation);
   }
 
-  async updateStationGroup(stationGroupId: string): Promise<void> {
-    // const stations: StationEntity[] = await this.stationModel
-    //   .find({ stationGroupId: new Types.ObjectId(stationGroupId) })
-    //   .exec();
-
-    const stations = await this.stationModel
-      .find({ stationGroupId })
-      .select('currentMeasurement')
-      .lean();
-
-    await this.stationGroupsService.addMeasurement(stationGroupId, stations);
-  }
-
   async delete(id: string) {
+    //TODO: Borrar mediciones asociadas a ese id
+
     const result = await this.stationModel.deleteOne({ _id: id });
 
     if (result.deletedCount === 0) {
@@ -241,18 +226,29 @@ export class StationsService {
   }
 
   private buildMeasurement(
-    measurement: MeasurementDto,
-  ): Partial<MeasurementDto> {
+    measurement: StationMeasurementEntity,
+  ): Partial<StationMeasurementDto> {
     if (measurement) {
       return {
         date: measurement.date,
         temperature: measurement.temperature,
         humidity: measurement.humidity,
         airPressure: measurement.airPressure,
-      } as MeasurementDto;
+      } as StationMeasurementDto;
     }
 
     return {};
+  }
+
+  private mapStationMeasurementDto(
+    stationMeasurementEntity: StationMeasurementEntity,
+  ): StationMeasurementDto {
+    return {
+      date: stationMeasurementEntity.date,
+      temperature: stationMeasurementEntity.temperature,
+      humidity: stationMeasurementEntity.humidity,
+      airPressure: stationMeasurementEntity.airPressure,
+    } as StationMeasurementDto;
   }
 
   private mapStationResponseDto(station: StationEntity): StationResponseDto {
@@ -267,7 +263,6 @@ export class StationsService {
         longitude: station.location.longitude,
       } as LocationDto,
       currentMeasurement: this.buildMeasurement(station.currentMeasurement),
-      measurements: station.measurements,
       stationGroupId: station.stationGroupId,
     } as StationResponseDto;
   }

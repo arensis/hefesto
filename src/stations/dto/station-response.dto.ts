@@ -1,14 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseStationResponseDto } from './base-station.response.dto';
-import { MeasurementDto } from './measurement.dto';
+import { StationMeasurementDto } from './station-measurement.dto';
 
 export class StationResponseDto extends BaseStationResponseDto {
   @ApiProperty({
-    type: MeasurementDto,
+    type: StationMeasurementDto,
     isArray: true,
     default: [],
   })
-  measurements?: MeasurementDto[];
+  measurements?: StationMeasurementDto[];
 
   @ApiProperty({
     type: String,
