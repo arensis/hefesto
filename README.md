@@ -47,7 +47,7 @@ $ npm run start:prod
 With the application running you can access to the swagger ui from the url:
 
 ```
-localhost:3000/api
+localhost:3000/swagger-api
 ```
 
 
