@@ -1,17 +1,17 @@
-import { LocationEntity, LocationEntitySchema } from './location.entity';
+import { ApiProperty } from '@nestjs/swagger';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { Type } from 'class-transformer';
+import { LocationEntitySchema, LocationEntity } from './model/location.entity';
 import {
   MeasurementEntity,
   MeasurementEntitySchema,
-} from './measurement.entity';
-import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+} from './model/measurement.entity';
 
-export type StationDocument = HydratedDocument<StationEntity>;
+export type StationGroupDocument = HydratedDocument<StationGroupEntity>;
 
-@Schema({ collection: 'stations', timestamps: true })
-export class StationEntity {
+@Schema({ collection: 'station_groups', timestamps: true })
+export class StationGroupEntity {
   @ApiProperty()
   @Prop({ type: Date })
   createdDate: Date;
@@ -28,15 +28,15 @@ export class StationEntity {
   @ApiProperty()
   @Prop({ type: MeasurementEntitySchema, default: {} })
   @Type(() => MeasurementEntity)
-  currentMeasurement: MeasurementEntity;
+  currentMeasurement?: MeasurementEntity;
 
-  @ApiProperty()
-  @Prop({ type: String, required: false })
-  @Type(() => String)
-  stationGroupId?: string;
+  @ApiProperty({ type: String, isArray: true })
+  @Prop({ type: String, isArray: true })
+  stations: string[];
 
   @ApiProperty()
   _id: any;
 }
 
-export const StationSchema = SchemaFactory.createForClass(StationEntity);
+export const StationGroupSchema =
+  SchemaFactory.createForClass(StationGroupEntity);

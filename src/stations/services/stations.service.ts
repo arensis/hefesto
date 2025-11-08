@@ -1,0 +1,274 @@
+import { StationDto } from '../dto/station.dto';
+import { MeasurementDto } from '../dto/measurement.dto';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  StationEntity,
+  StationDocument,
+} from '../database/model/station.entity';
+import { LocationDto } from '../dto/location.dto';
+import { StationResponseDto } from '../dto/station-response.dto';
+import { StationGroupsService } from './station-groups.service';
+
+@Injectable()
+export class StationsService {
+  constructor(
+    @InjectModel(StationEntity.name)
+    private stationModel: Model<StationDocument>,
+    @Inject(forwardRef(() => StationGroupsService))
+    private readonly stationGroupsService: StationGroupsService,
+  ) {}
+
+  async findByIdWithCurrentDayMeasurements(
+    id: string,
+  ): Promise<StationResponseDto> {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = new Date(date);
+
+    const station = await this.stationModel
+      .findOne(
+        { _id: id },
+        {
+          location: 1,
+          createdDate: 1,
+          stationGroupId: 1,
+          currentMeasurement: 1,
+          measurements: {
+            $filter: {
+              input: '$measurements',
+              as: 'm',
+              cond: {
+                $and: [
+                  { $gte: ['$$m.date', startDate] },
+                  { $lt: ['$$m.date', endDate] },
+                ],
+              },
+            },
+          },
+        },
+      )
+      .lean();
+
+    if (!station) throw new NotFoundException('Not found station ' + id);
+
+    return this.mapStationResponseDto(station);
+  }
+
+  async addStationGroupId(
+    id: string,
+    stationGroupId: string,
+  ): Promise<StationEntity> {
+    const updatedStation = await this.stationModel
+      .findByIdAndUpdate(id, { $set: { stationGroupId } }, { new: true })
+      .lean();
+
+    if (!updatedStation) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return updatedStation as StationEntity;
+  }
+
+  async deleteStationGroupId(id: string): Promise<StationEntity> {
+    const updatedStation = await this.stationModel
+      .findByIdAndUpdate(id, { $unset: { stationGroupId: 1 } }, { new: true })
+      .lean();
+
+    if (!updatedStation) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return updatedStation as StationEntity;
+  }
+
+  async findAllNotGrouped(): Promise<StationResponseDto[]> {
+    const stations = await this.stationModel
+      .find({
+        $or: [
+          { stationGroupId: { $exists: false } },
+          { stationGroupId: { $in: [null, '', undefined] } },
+        ],
+      })
+      .select('-measurements')
+      .lean();
+
+    return stations.map((station: StationEntity) =>
+      this.mapStationResponseDto(station),
+    );
+  }
+
+  async findAll(): Promise<StationResponseDto[]> {
+    const stations = await this.stationModel
+      .find({
+        stationsGroupId: { $in: [null, '', undefined] },
+      })
+      .select('location createdDate stationGroupId currentMeasurement')
+      .lean();
+
+    return stations.map((station: StationEntity) =>
+      this.mapStationResponseDto(station),
+    );
+  }
+
+  async findMeasurementsBy(
+    stationId: string,
+    measurementDate: Date,
+  ): Promise<MeasurementDto[]> {
+    const date = new Date(measurementDate);
+    date.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(date);
+    date.setDate(date.getDate() + 1);
+    const endDate = new Date(date);
+
+    const station = await this.stationModel
+      .findOne(
+        { _id: stationId },
+        {
+          _id: 0,
+          measurements: {
+            $filter: {
+              input: '$measurements',
+              as: 'm',
+              cond: {
+                $and: [
+                  { $gte: ['$$m.date', startDate] },
+                  { $lt: ['$$m.date', endDate] },
+                ],
+              },
+            },
+          },
+        },
+      )
+      .lean();
+
+    return station?.measurements || [];
+  }
+
+  async findByStationGroupId(
+    stationGroupId: string,
+  ): Promise<StationResponseDto[]> {
+    const stations = await this.stationModel
+      .find({ stationGroupId })
+      .select('location createdDate stationGroupId currentMeasurement')
+      .lean();
+
+    return stations.map((station: StationEntity) =>
+      this.mapStationResponseDto(station),
+    );
+  }
+
+  async findById(id: string): Promise<StationResponseDto> {
+    const station = await this.stationModel
+      .findById(id)
+      .select('-measurements')
+      .lean()
+      .exec();
+
+    return this.mapStationResponseDto(station);
+  }
+
+  async create(stationDto: StationDto): Promise<StationEntity> {
+    stationDto.createdDate = new Date();
+    stationDto.measurements = [];
+
+    return await this.stationModel.create(stationDto);
+  }
+
+  async addMeasurement(
+    id: string,
+    measurementDto: Partial<MeasurementDto>,
+  ): Promise<StationResponseDto> {
+    if ((measurementDto?.temperature || 0) <= 0) {
+      throw new BadRequestException('Temperature cannot be 0 o null');
+    }
+
+    const measurement = {
+      date: new Date(),
+      temperature: measurementDto.temperature,
+      humidity: measurementDto.humidity,
+      airPressure: measurementDto.airPressure ?? 0,
+    };
+
+    const updatedStation = await this.stationModel
+      .findOneAndUpdate(
+        { _id: id },
+        {
+          $set: { currentMeasurement: measurement },
+          $push: { measurements: measurement },
+        },
+        { new: true },
+      )
+      .lean();
+
+    if (!updatedStation) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return this.mapStationResponseDto(updatedStation);
+  }
+
+  async updateStationGroup(stationGroupId: string): Promise<void> {
+    // const stations: StationEntity[] = await this.stationModel
+    //   .find({ stationGroupId: new Types.ObjectId(stationGroupId) })
+    //   .exec();
+
+    const stations = await this.stationModel
+      .find({ stationGroupId })
+      .select('currentMeasurement')
+      .lean();
+
+    await this.stationGroupsService.addMeasurement(stationGroupId, stations);
+  }
+
+  async delete(id: string) {
+    const result = await this.stationModel.deleteOne({ _id: id });
+
+    if (result.deletedCount === 0) {
+      throw new NotFoundException(`Station ${id} not found`);
+    }
+
+    return result;
+  }
+
+  private buildMeasurement(
+    measurement: MeasurementDto,
+  ): Partial<MeasurementDto> {
+    if (measurement) {
+      return {
+        date: measurement.date,
+        temperature: measurement.temperature,
+        humidity: measurement.humidity,
+        airPressure: measurement.airPressure,
+      } as MeasurementDto;
+    }
+
+    return {};
+  }
+
+  private mapStationResponseDto(station: StationEntity): StationResponseDto {
+    return {
+      id: station?._id,
+      createdDate: station.createdDate,
+      location: {
+        name: station.location.name,
+        indoor: station.location.indoor,
+        city: station.location.city,
+        latitude: station.location.latitude,
+        longitude: station.location.longitude,
+      } as LocationDto,
+      currentMeasurement: this.buildMeasurement(station.currentMeasurement),
+      measurements: station.measurements,
+      stationGroupId: station.stationGroupId,
+    } as StationResponseDto;
+  }
+}

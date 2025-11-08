@@ -1,10 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseStationDto } from './base-station.dto';
 
-export class StationDto extends BaseStationDto {
+export class StationGroupDto extends BaseStationDto {
   @ApiProperty({
     type: String,
-    required: false,
+    isArray: true,
   })
-  stationGroupId?: string;
+  stationsId: string[];
 }

@@ -4,7 +4,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type LocationEntityDocument = HydratedDocument<LocationEntity>;
 
-@Schema({ collection: 'location' })
+@Schema()
 export class LocationEntity {
   @ApiProperty()
   @Prop()
