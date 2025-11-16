@@ -104,9 +104,6 @@ export class StationsController {
     @Param('id') id: string,
     @Body() measurementDto: MeasurementDto,
   ): Promise<StationResponseDto | BadRequestException> {
-    console.log('DATABASE_HOST:', process.env.DATABASE_HOST);
-    console.log('DATABASE_PORT:', process.env.DATABASE_PORT);
-    console.log('DATABASE_NAME:', process.env.DATABASE_NAME);
     return await this.stationOrchestratorService.addMeasurementAndPropagate(
       id,
       measurementDto,

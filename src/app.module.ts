@@ -11,15 +11,21 @@ import { StationsModule } from './stations/stations.module';
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: `mongodb://${configService.get(
-          'DATABASE_HOST',
-        )}:${configService.get('DATABASE_PORT')}/${configService.get(
-          'DATABASE_NAME',
-        )}?replicaSet=rs0`,
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      }),
+      useFactory: async (configService: ConfigService) => {
+        console.log('DATABASE_HOST:', configService.get('DATABASE_HOST'));
+        console.log('DATABASE_PORT:', configService.get('DATABASE_PORT'));
+        console.log('DATABASE_NAME:', configService.get('DATABASE_NAME'));
+
+        return {
+          uri: `mongodb://${configService.get(
+            'DATABASE_HOST',
+          )}:${configService.get('DATABASE_PORT')}/${configService.get(
+            'DATABASE_NAME',
+          )}?replicaSet=rs0`,
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+        };
+      },
       inject: [ConfigService],
     }),
     StationsModule,
