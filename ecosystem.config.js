@@ -7,7 +7,7 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
-      env: {
+      env_production: {
         NODE_ENV: 'production',
         DATABASE_HOST: '127.0.0.1',
         DATABASE_PORT: '27017',
