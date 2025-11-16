@@ -1,12 +1,12 @@
 import { LocationEntity, LocationEntitySchema } from './location.entity';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import {
-  MeasurementEntity,
-  MeasurementEntitySchema,
-} from './measurement.entity';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import {
+  StationMeasurementEntity,
+  StationMeasurementEntitySchema,
+} from './station-measurement.entity';
 
 export type StationDocument = HydratedDocument<StationEntity>;
 
@@ -21,14 +21,10 @@ export class StationEntity {
   @Type(() => LocationEntity)
   location: LocationEntity;
 
-  @ApiProperty({ type: MeasurementEntity, isArray: true })
-  @Prop({ type: [MeasurementEntitySchema], default: [] })
-  measurements: MeasurementEntity[];
-
   @ApiProperty()
-  @Prop({ type: MeasurementEntitySchema, default: {} })
-  @Type(() => MeasurementEntity)
-  currentMeasurement: MeasurementEntity;
+  @Prop({ type: StationMeasurementEntitySchema, default: {} })
+  @Type(() => StationMeasurementEntity)
+  currentMeasurement: StationMeasurementEntity;
 
   @ApiProperty()
   @Prop({ type: String, required: false })

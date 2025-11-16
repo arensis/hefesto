@@ -20,12 +20,16 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { StationEntity } from '../database/model/station.entity';
-import { StationsService } from '../services/stations.service';
+import { StationsService } from '../services/database/stations.service';
+import { StationsOrchestratorService } from '../services/database/transactions/station-orchestrator.service';
 
 @ApiTags('stations')
 @Controller('stations')
 export class StationsController {
-  constructor(private readonly stationService: StationsService) {}
+  constructor(
+    private readonly stationService: StationsService,
+    private readonly stationOrchestratorService: StationsOrchestratorService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -71,7 +75,9 @@ export class StationsController {
   @ApiOperation({ summary: 'Delete station' })
   @ApiAcceptedResponse()
   async delete(@Param('id') id: string) {
-    return await this.stationService.delete(id);
+    return await this.stationOrchestratorService.deleteStationWithMeasurements(
+      id,
+    );
   }
 
   @Get(':id/measurements')
@@ -98,6 +104,9 @@ export class StationsController {
     @Param('id') id: string,
     @Body() measurementDto: MeasurementDto,
   ): Promise<StationResponseDto | BadRequestException> {
-    return await this.stationService.addMeasurement(id, measurementDto);
+    return await this.stationOrchestratorService.addMeasurementAndPropagate(
+      id,
+      measurementDto,
+    );
   }
 }

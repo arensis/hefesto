@@ -19,9 +19,60 @@ Si el contenedor de docker va a ser ejecutado dentro de una raspberry pi, si la 
     - https://hardzone.es/reportajes/que-es/instrucciones-avx-procesador/
   
   #### Comando para levantar el contenedor de mongodb:
+  Primero crearemos un directorio para almacenar los datos en disco y no perderlos frente a reinicios o problemas en el contenedor:
+
   ```bash
-  docker run -p 0.0.0.0:27017:27017 --name mongo-kairos -d mongo:4.4.6
+  mkdir -p ~/mongo-kairos-data
   ```
+
+  Después ejecutaremos el comando para poder crear el contenedor de mongo como replica set para permitir sesiones de trasnsación enlazando el volumen de datos definido en el disco en el argumento -v
+
+  ```bash
+  docker run --name mongo-kairos \
+    -p 27017:27017 \
+    -v ~/mongo-data:/data/db \
+    -d mongo:4.4.6 \
+    --replSet rs0
+  ```
+
+  Una vez hecho esto entramos en el contenedor para inicializar el replica set:
+
+  ```bash
+  docker exec -it mongo-kairos mongo
+  ```
+
+  En la shell del contenedor ejecutaremos el comando para la inicialización
+
+  ```javascript
+  rs.initiate()
+  ```
+
+  Y se debería de devolver un ok 1 dentro del json de repuesta:
+
+  ```json
+  {
+    ...,
+    "ok": 1
+  }
+  ```
+
+  Confiramos con el comando status para ver que en myState esté el valor 1 que indicará que es el primario
+
+  ```js
+  rs.status()
+  ```
+
+  Y la respuesta deberá contener dicho valor de la asiguiente manera:
+
+  ```json
+  {
+    "set" : "rs0",
+	  "date" : ISODate("2025-11-16T16:35:52.893Z"),
+	  "myState" : 1,
+    ...,
+  }
+  ```
+
 
 ### Descargar las dependencias del proyecto
 
@@ -48,6 +99,14 @@ With the application running you can access to the swagger ui from the url:
 
 ```
 localhost:3000/swagger-api
+```
+
+## Deploy
+
+Para un despliegue usando PM2 se podrá hacer uso del fichero deploy.sh añadido al proyecto:
+
+```bash
+./deploy.sh
 ```
 
 

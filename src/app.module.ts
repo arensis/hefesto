@@ -5,16 +5,23 @@ import { StationsModule } from './stations/stations.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'production' ? undefined : '.env',
+    }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: `mongodb://${configService.get(
-          'DATABASE_HOST',
-        )}:${configService.get('DATABASE_PORT')}/${configService.get(
-          'DATABASE_NAME',
-        )}`,
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const host = configService.get('DATABASE_HOST');
+        const port = configService.get('DATABASE_PORT');
+        const dbName = configService.get('DATABASE_NAME');
+        console.log('Conectando a Mongo:', { host, port, dbName });
+        return {
+          uri: `mongodb://${host}:${port}/${dbName}?replicaSet=rs0`,
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+        };
+      },
       inject: [ConfigService],
     }),
     StationsModule,
