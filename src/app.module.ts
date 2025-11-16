@@ -17,7 +17,7 @@ import { StationsModule } from './stations/stations.module';
         const dbName = configService.get('DATABASE_NAME');
         console.log('Conectando a Mongo:', { host, port, dbName });
         return {
-          uri: `mongodb://${host}:${port}/${dbName}`,
+          uri: `mongodb://${host}:${port}/${dbName}?replicaSet=rs0`,
           useNewUrlParser: true,
           useUnifiedTopology: true,
         };
