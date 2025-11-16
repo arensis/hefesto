@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:4.4.6
+    container_name: mongo-kairos
+    ports:
+      - "27017:27017"
+    command: ["--replSet", "rs0"]
+    volumes:
+      - ./data/db:/data/db
