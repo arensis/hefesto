@@ -14,9 +14,9 @@ import {
   Post,
 } from '@nestjs/common';
 import { StationGroupDto } from '../dto/station.group.dto';
-import { StationGroupEntity } from '../database/station-group.entity';
 import { StationGroupResponseDto } from '../dto/station-group-response.dto';
-import { StationGroupsService } from '../services/station-groups.service';
+import { StationGroupsService } from '../services/database/station-groups.service';
+import { StationGroupEntity } from '../database/model/station-group.entity';
 
 @ApiTags('station-groups')
 @Controller('station-groups')

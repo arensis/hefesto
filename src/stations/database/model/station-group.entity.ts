@@ -2,11 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { Type } from 'class-transformer';
-import { LocationEntitySchema, LocationEntity } from './model/location.entity';
+import { LocationEntitySchema, LocationEntity } from './location.entity';
 import {
-  StationMeasurementEntity,
   StationMeasurementEntitySchema,
-} from './model/station-measurement.entity';
+  StationMeasurementEntity,
+} from './station-measurement.entity';
 
 export type StationGroupDocument = HydratedDocument<StationGroupEntity>;
 

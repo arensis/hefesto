@@ -20,7 +20,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { StationEntity } from '../database/model/station.entity';
-import { StationsService } from '../services/stations.service';
+import { StationsService } from '../services/database/stations.service';
 
 @ApiTags('stations')
 @Controller('stations')

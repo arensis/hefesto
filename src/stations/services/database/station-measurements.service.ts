@@ -1,8 +1,8 @@
-import { StationMeasurementEntity } from './../database/model/station-measurement.entity';
+import { StationMeasurementEntity } from '../../database/model/station-measurement.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { StationMeasurementDto } from '../dto/station-measurement.dto';
+import { ClientSession, Model } from 'mongoose';
+import { StationMeasurementDto } from '../../dto/station-measurement.dto';
 
 @Injectable()
 export class StationMeasurementsService {
@@ -11,19 +11,22 @@ export class StationMeasurementsService {
     private stationMeasurementModel: Model<StationMeasurementEntity>,
   ) {}
 
-  //TODO: Crear servicio y entidad con colección propia para guardar las mediciones de los grupos de staciones
-
   async create(
     stationId: string,
     stationMeasurementDto: StationMeasurementDto,
+    session?: ClientSession,
   ): Promise<StationMeasurementEntity> {
-    const measurement = {
+    const measurement = new this.stationMeasurementModel({
       stationId,
       date: new Date(),
       ...stationMeasurementDto,
-    };
+    });
 
-    return await this.stationMeasurementModel.create(measurement);
+    return await measurement.save({ session });
+  }
+
+  async deleteByStationId(stationId: string, session?: ClientSession) {
+    return this.stationMeasurementModel.deleteMany({ stationId }, { session });
   }
 
   async findMeasurementsByDay(
