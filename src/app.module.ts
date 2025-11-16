@@ -12,16 +12,12 @@ import { StationsModule } from './stations/stations.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
-        console.log('DATABASE_HOST:', configService.get('DATABASE_HOST'));
-        console.log('DATABASE_PORT:', configService.get('DATABASE_PORT'));
-        console.log('DATABASE_NAME:', configService.get('DATABASE_NAME'));
-
+        const host = configService.get('DATABASE_HOST');
+        const port = configService.get('DATABASE_PORT');
+        const dbName = configService.get('DATABASE_NAME');
+        console.log('Conectando a Mongo:', { host, port, dbName });
         return {
-          uri: `mongodb://${configService.get(
-            'DATABASE_HOST',
-          )}:${configService.get('DATABASE_PORT')}/${configService.get(
-            'DATABASE_NAME',
-          )}?replicaSet=rs0`,
+          uri: `mongodb://${host}:${port}/${dbName}?replicaSet=rs0`,
           useNewUrlParser: true,
           useUnifiedTopology: true,
         };
