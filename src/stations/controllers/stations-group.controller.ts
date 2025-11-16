@@ -17,11 +17,15 @@ import { StationGroupDto } from '../dto/station.group.dto';
 import { StationGroupResponseDto } from '../dto/station-group-response.dto';
 import { StationGroupsService } from '../services/database/station-groups.service';
 import { StationGroupEntity } from '../database/model/station-group.entity';
+import { StationGroupsOrchestrator } from '../services/database/transactions/station-groups-orchestrator.service';
 
 @ApiTags('station-groups')
 @Controller('station-groups')
 export class StationGroupsController {
-  constructor(private readonly stationGroupsService: StationGroupsService) {}
+  constructor(
+    private readonly stationGroupsService: StationGroupsService,
+    private readonly stationGroupsOrchestrator: StationGroupsOrchestrator,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Find all station groups' })
@@ -60,7 +64,10 @@ export class StationGroupsController {
     @Param('id') id: string,
     @Param('stationId') stationId: string,
   ): Promise<StationGroupEntity> {
-    return this.stationGroupsService.addStation(id, stationId);
+    return this.stationGroupsOrchestrator.addStationToGroupTransactional(
+      id,
+      stationId,
+    );
   }
 
   @Delete('/:id/stations/:stationId')
@@ -72,13 +79,16 @@ export class StationGroupsController {
     @Param('id') id: string,
     @Param('stationId') stationId: string,
   ): Promise<StationGroupEntity> {
-    return this.stationGroupsService.deleteStation(id, stationId);
+    return this.stationGroupsOrchestrator.deleteStationFromGroupTransactional(
+      id,
+      stationId,
+    );
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete station group' })
   @ApiAcceptedResponse()
   async delete(@Param('id') id: string) {
-    return this.stationGroupsService.delete(id);
+    return this.stationGroupsOrchestrator.deleteGroupWithDependencies(id);
   }
 }

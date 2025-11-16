@@ -55,7 +55,7 @@ export class StationGroupsOrchestrator {
     });
   }
 
-  async removeStationFromGroupTransactional(
+  async deleteStationFromGroupTransactional(
     stationGroupId: string,
     stationId: string,
   ) {
