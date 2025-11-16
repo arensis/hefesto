@@ -7,7 +7,7 @@ import { StationsModule } from './stations/stations.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: process.env.NODE_ENV === 'production' ? undefined : '.env',
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
