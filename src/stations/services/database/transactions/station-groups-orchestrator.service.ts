@@ -4,6 +4,8 @@ import { StationGroupMeasurementsService } from '../station-group-measurements.s
 import { StationGroupsService } from '../station-groups.service';
 import { StationMeasurementsService } from '../station-measurements.service';
 import { StationsService } from '../stations.service';
+import { StationGroupEntity } from 'src/stations/database/model/station-group.entity';
+import { DeleteResult } from 'mongodb';
 
 @Injectable()
 export class StationGroupsOrchestrator {
@@ -15,7 +17,7 @@ export class StationGroupsOrchestrator {
     private readonly stationMeasurementsService: StationMeasurementsService,
   ) {}
 
-  async deleteGroupWithDependencies(groupId: string) {
+  async deleteGroupWithDependencies(groupId: string): Promise<DeleteResult> {
     return this.databaseTransactionService.execute(async (session) => {
       const group = await this.stationGroupsService.findById(groupId);
       if (!group)
@@ -43,7 +45,10 @@ export class StationGroupsOrchestrator {
     });
   }
 
-  async addStationToGroupTransactional(groupId: string, stationId: string) {
+  async addStationToGroupTransactional(
+    groupId: string,
+    stationId: string,
+  ): Promise<StationGroupEntity> {
     return this.databaseTransactionService.execute(async (session) => {
       await this.stationsService.addStationGroupId(stationId, groupId, session);
 
@@ -58,17 +63,13 @@ export class StationGroupsOrchestrator {
   async deleteStationFromGroupTransactional(
     stationGroupId: string,
     stationId: string,
-  ) {
+  ): Promise<StationGroupEntity> {
     return this.databaseTransactionService.execute(async (session) => {
-      await this.stationGroupsService.deleteStation(
+      return await this.stationGroupsService.deleteStation(
         stationGroupId,
         stationId,
         session,
       );
-
-      await this.stationsService.findEntitiesByStationGroupId(stationGroupId);
-
-      return await this.stationGroupsService.findById(stationGroupId);
     });
   }
 }

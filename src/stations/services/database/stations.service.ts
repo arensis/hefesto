@@ -19,6 +19,7 @@ import { StationMeasurementsService } from './station-measurements.service';
 import { StationMeasurementEntity } from '../../database/model/station-measurement.entity';
 import { MeasurementMapperService } from '../mappers/measurement.mapper';
 import { StationMapperService } from '../mappers/station.mapper';
+import { DeleteResult } from 'mongodb';
 
 @Injectable()
 export class StationsService {
@@ -199,7 +200,7 @@ export class StationsService {
     return this.stationMapper.mapStationResponseDto(updatedStation);
   }
 
-  async delete(id: string, session?: ClientSession) {
+  async delete(id: string, session?: ClientSession): Promise<DeleteResult> {
     const result = await this.stationModel.deleteOne({ _id: id }, { session });
 
     if (result.deletedCount === 0) {

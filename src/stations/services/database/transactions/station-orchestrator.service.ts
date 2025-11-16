@@ -3,6 +3,8 @@ import { StationMeasurementDto } from '../../../dto/station-measurement.dto';
 import { DatabaseTransactionService } from './database-transaction.service';
 import { StationMeasurementsService } from '../station-measurements.service';
 import { StationsService } from '../stations.service';
+import { StationResponseDto } from 'src/stations/dto/station-response.dto';
+import { DeleteResult } from 'mongodb';
 
 @Injectable()
 export class StationsOrchestratorService {
@@ -12,7 +14,9 @@ export class StationsOrchestratorService {
     private readonly measurementsService: StationMeasurementsService,
   ) {}
 
-  async deleteStationWithMeasurements(stationId: string) {
+  async deleteStationWithMeasurements(
+    stationId: string,
+  ): Promise<DeleteResult> {
     return this.databaseTransactionService.execute(async (session) => {
       await this.measurementsService.deleteByStationId(stationId, session);
       const deletionAction = await this.stationsService.delete(
@@ -31,7 +35,7 @@ export class StationsOrchestratorService {
   async addMeasurementAndPropagate(
     stationId: string,
     measurementDto: StationMeasurementDto,
-  ) {
+  ): Promise<StationResponseDto> {
     return this.databaseTransactionService.execute(async (session) => {
       return await this.stationsService.addMeasurement(
         stationId,

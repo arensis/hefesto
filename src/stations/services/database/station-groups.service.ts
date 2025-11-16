@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
-import { LocationDto } from '../../dto/location.dto';
 import { StationGroupDto } from '../../dto/station.group.dto';
 import { StationsService } from './stations.service';
 import { StationEntity } from '../../database/model/station.entity';
@@ -18,6 +17,7 @@ import {
 } from '../../database/model/station-group.entity';
 import { MeasurementMapperService } from '../mappers/measurement.mapper';
 import { StationGroupResponseMapper } from '../mappers/station-group-response.mapper';
+import { DeleteResult } from 'mongodb';
 
 @Injectable()
 export class StationGroupsService {
@@ -70,7 +70,7 @@ export class StationGroupsService {
     return await this.stationGroupModel.create(stationGroupDto);
   }
 
-  async delete(id: string, session?: ClientSession) {
+  async delete(id: string, session?: ClientSession): Promise<DeleteResult> {
     const result = await this.stationGroupModel.deleteOne(
       { _id: id },
       { session },
