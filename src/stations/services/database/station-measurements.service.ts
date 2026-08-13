@@ -29,7 +29,8 @@ export class StationMeasurementsService {
     return this.stationMeasurementModel.deleteMany({ stationId }, { session });
   }
 
-  // Minutos por bucket para el downsampling de la respuesta del grafico.
+  // Minutos por bucket por defecto para el downsampling de la respuesta del
+  // grafico cuando el cliente no especifica 'bucketMinutes' en la query.
   // Reduce el numero de puntos devueltos (payload y render en el frontend)
   // SIN borrar datos crudos de la base de datos.
   private static readonly DOWNSAMPLE_BUCKET_MINUTES = 15;
@@ -37,6 +38,7 @@ export class StationMeasurementsService {
   async findMeasurementsByDay(
     stationId: string,
     date: Date,
+    bucketMinutes: number = StationMeasurementsService.DOWNSAMPLE_BUCKET_MINUTES,
   ): Promise<StationMeasurementEntity[]> {
     const startDate = new Date(date);
     startDate.setUTCHours(0, 0, 0, 0);
@@ -53,10 +55,7 @@ export class StationMeasurementsService {
       .sort({ date: 1 })
       .lean();
 
-    return this.downsample(
-      measurements,
-      StationMeasurementsService.DOWNSAMPLE_BUCKET_MINUTES,
-    );
+    return this.downsample(measurements, bucketMinutes);
   }
 
   // Conserva una medida por cada bucket de N minutos (la primera de cada bucket).

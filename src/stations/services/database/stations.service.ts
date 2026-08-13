@@ -136,11 +136,13 @@ export class StationsService {
   async findMeasurementsBy(
     stationId: string,
     measurementDate: Date,
+    bucketMinutes?: number,
   ): Promise<MeasurementDto[]> {
     const measurements =
       await this.stationMeasurementsService.findMeasurementsByDay(
         stationId,
         measurementDate,
+        bucketMinutes,
       );
 
     return measurements.map((entity: StationMeasurementEntity) =>
