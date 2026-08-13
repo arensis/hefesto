@@ -29,6 +29,11 @@ export class StationMeasurementsService {
     return this.stationMeasurementModel.deleteMany({ stationId }, { session });
   }
 
+  // Minutos por bucket para el downsampling de la respuesta del grafico.
+  // Reduce el numero de puntos devueltos (payload y render en el frontend)
+  // SIN borrar datos crudos de la base de datos.
+  private static readonly DOWNSAMPLE_BUCKET_MINUTES = 5;
+
   async findMeasurementsByDay(
     stationId: string,
     date: Date,
@@ -39,12 +44,42 @@ export class StationMeasurementsService {
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1);
 
-    return this.stationMeasurementModel
+    const measurements = await this.stationMeasurementModel
       .find({
         stationId,
         date: { $gte: startDate, $lt: endDate },
       })
       .select('-_id -stationId')
+      .sort({ date: 1 })
       .lean();
+
+    return this.downsample(
+      measurements,
+      StationMeasurementsService.DOWNSAMPLE_BUCKET_MINUTES,
+    );
+  }
+
+  // Conserva una medida por cada bucket de N minutos (la primera de cada bucket).
+  // Los datos historicos densos (p. ej. una medida cada pocos segundos) se
+  // devuelven ya aligerados, manteniendo intactos los documentos en la BD.
+  private downsample(
+    measurements: StationMeasurementEntity[],
+    bucketMinutes: number,
+  ): StationMeasurementEntity[] {
+    if (!bucketMinutes || bucketMinutes <= 0) return measurements;
+
+    const bucketMs = bucketMinutes * 60 * 1000;
+    const result: StationMeasurementEntity[] = [];
+    let lastBucket: number | null = null;
+
+    for (const m of measurements) {
+      const bucket = Math.floor(new Date(m.date).getTime() / bucketMs);
+      if (bucket !== lastBucket) {
+        result.push(m);
+        lastBucket = bucket;
+      }
+    }
+
+    return result;
   }
 }
