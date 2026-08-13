@@ -32,7 +32,7 @@ export class StationMeasurementsService {
   // Minutos por bucket para el downsampling de la respuesta del grafico.
   // Reduce el numero de puntos devueltos (payload y render en el frontend)
   // SIN borrar datos crudos de la base de datos.
-  private static readonly DOWNSAMPLE_BUCKET_MINUTES = 5;
+  private static readonly DOWNSAMPLE_BUCKET_MINUTES = 15;
 
   async findMeasurementsByDay(
     stationId: string,
