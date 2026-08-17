@@ -36,3 +36,7 @@ export class StationMeasurementEntity {
 export const StationMeasurementEntitySchema = SchemaFactory.createForClass(
   StationMeasurementEntity,
 );
+
+// Indice para las consultas por estacion + dia (findMeasurementsByDay).
+// Sin el, cada consulta hace COLLSCAN de toda la coleccion.
+StationMeasurementEntitySchema.index({ stationId: 1, date: 1 });
