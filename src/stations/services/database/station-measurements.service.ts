@@ -32,6 +32,7 @@ export class StationMeasurementsService {
   async findMeasurementsByDay(
     stationId: string,
     date: Date,
+    bucketMinutes = 0, // 0 => sin downsampling: devuelve todas las medidas del dia
   ): Promise<StationMeasurementEntity[]> {
     const startDate = new Date(date);
     startDate.setUTCHours(0, 0, 0, 0);
@@ -39,12 +40,39 @@ export class StationMeasurementsService {
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1);
 
-    return this.stationMeasurementModel
+    const measurements = await this.stationMeasurementModel
       .find({
         stationId,
         date: { $gte: startDate, $lt: endDate },
       })
       .select('-_id -stationId')
+      .sort({ date: 1 })
       .lean();
+
+    return this.downsample(measurements, bucketMinutes);
+  }
+
+  // Conserva una medida por cada bucket de N minutos (la primera de cada bucket).
+  // Los datos historicos densos (p. ej. una medida cada pocos segundos) se
+  // devuelven ya aligerados, manteniendo intactos los documentos en la BD.
+  private downsample(
+    measurements: StationMeasurementEntity[],
+    bucketMinutes: number,
+  ): StationMeasurementEntity[] {
+    if (!bucketMinutes || bucketMinutes <= 0) return measurements;
+
+    const bucketMs = bucketMinutes * 60 * 1000;
+    const result: StationMeasurementEntity[] = [];
+    let lastBucket: number | null = null;
+
+    for (const m of measurements) {
+      const bucket = Math.floor(new Date(m.date).getTime() / bucketMs);
+      if (bucket !== lastBucket) {
+        result.push(m);
+        lastBucket = bucket;
+      }
+    }
+
+    return result;
   }
 }

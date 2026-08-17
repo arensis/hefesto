@@ -1,5 +1,5 @@
 import { StationResponseDto } from './../dto/station-response.dto';
-import { DateQueryDto } from '../dto/date-query.dto';
+import { DateQueryDto, parseBucketMinutes } from '../dto/date-query.dto';
 import { StationDto } from '../dto/station.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
 import {
@@ -92,6 +92,7 @@ export class StationsController {
     return await this.stationService.findMeasurementsBy(
       id,
       new Date(queryDto.date),
+      parseBucketMinutes(queryDto.bucketMinutes),
     );
   }
 
