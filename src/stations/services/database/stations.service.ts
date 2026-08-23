@@ -94,10 +94,12 @@ export class StationsService {
 
   async findEntitiesByStationGroupId(
     stationGroupId: string,
+    session?: ClientSession,
   ): Promise<StationEntity[]> {
     return await this.stationModel
       .find({ stationGroupId })
       .select('location createdDate stationGroupId currentMeasurement')
+      .session(session ?? null)
       .lean();
   }
 

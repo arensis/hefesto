@@ -50,8 +50,6 @@ export class StationGroupsOrchestrator {
     stationId: string,
   ): Promise<StationGroupEntity> {
     return this.databaseTransactionService.execute(async (session) => {
-      await this.stationsService.addStationGroupId(stationId, groupId, session);
-
       return await this.stationGroupsService.addStation(
         groupId,
         stationId,
