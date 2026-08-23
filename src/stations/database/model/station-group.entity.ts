@@ -21,8 +21,8 @@ export class StationGroupEntity {
   @Type(() => LocationEntity)
   location: LocationEntity;
 
-  @ApiProperty()
-  @Prop({ type: StationMeasurementEntitySchema, default: {} })
+  @ApiProperty({ required: false })
+  @Prop({ type: StationMeasurementEntitySchema, required: false, default: undefined })
   @Type(() => StationMeasurementEntity)
   currentMeasurement?: StationMeasurementEntity;
 
