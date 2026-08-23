@@ -1,5 +1,6 @@
 import { StationResponseDto } from './../dto/station-response.dto';
 import { DateQueryDto, parseBucketMinutes } from '../dto/date-query.dto';
+import { AggregateQueryDto, parsePeriod } from '../dto/aggregate-query.dto';
 import { StationDto } from '../dto/station.dto';
 import { MeasurementDto } from '../dto/measurement.dto';
 import {
@@ -93,6 +94,21 @@ export class StationsController {
       id,
       new Date(queryDto.date),
       parseBucketMinutes(queryDto.bucketMinutes),
+    );
+  }
+
+  @Get(':id/aggregates')
+  @ApiOperation({
+    summary: 'Agregados (media/min/max) por dia, mes o anio de una estacion',
+  })
+  async getAggregates(
+    @Param('id') id: string,
+    @Query() queryDto: AggregateQueryDto,
+  ) {
+    return this.stationService.getAggregates(
+      id,
+      parsePeriod(queryDto.period),
+      new Date(queryDto.date),
     );
   }
 

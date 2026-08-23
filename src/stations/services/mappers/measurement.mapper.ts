@@ -9,19 +9,25 @@ import { StationMeasurementDto } from 'src/stations/dto/station-measurement.dto'
 export class MeasurementMapperService {
   constructor(private mCalculationService: MeasurementsCalculationService) {}
 
-  buildGroupStationMeasurement(stations: StationEntity[]): MeasurementDto {
-    const humidityMean: number =
-      this.mCalculationService.calculateStationsHumidityeMean(stations);
-    const temperatureMean: number =
-      this.mCalculationService.calculateStationsTemperatureMean(stations);
-    const airPressureMean: number =
-      this.mCalculationService.calculateStationsAirPressureMean(stations);
+  buildGroupStationMeasurement(stations: StationEntity[]): MeasurementDto | null {
+    // Solo las estaciones operativas (medicion reciente) participan en la media.
+    const operational =
+      this.mCalculationService.getOperationalStations(stations);
+
+    // Sin estaciones operativas no hay media valida: no inventamos un 0.
+    if (operational.length === 0) {
+      return null;
+    }
 
     return {
       date: new Date(),
-      temperature: temperatureMean,
-      humidity: humidityMean,
-      airPressure: airPressureMean ?? 0,
+      temperature:
+        this.mCalculationService.calculateStationsTemperatureMean(operational),
+      humidity:
+        this.mCalculationService.calculateStationsHumidityMean(operational),
+      airPressure:
+        this.mCalculationService.calculateStationsAirPressureMean(operational) ??
+        0,
     } as MeasurementDto;
   }
 

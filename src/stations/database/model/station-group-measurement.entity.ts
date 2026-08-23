@@ -36,3 +36,6 @@ export class StationGroupMeasurementEntity {
 export const StationGroupMeasurementEntitySchema = SchemaFactory.createForClass(
   StationGroupMeasurementEntity,
 );
+
+// Indice para las consultas del historico por grupo + dia (findMeasurementsByDay).
+StationGroupMeasurementEntitySchema.index({ stationGroupId: 1, date: 1 });

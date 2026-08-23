@@ -1,44 +1,59 @@
 import { Injectable } from '@nestjs/common';
 import { StationEntity } from '../database/model/station.entity';
+import { StationMeasurementEntity } from '../database/model/station-measurement.entity';
 
 @Injectable()
 export class MeasurementsCalculationService {
-  calculateStationsTemperatureMean(stations: StationEntity[]): number {
-    const temperatures: number[] = stations
-      .map((station) => station.currentMeasurement.temperature)
-      .filter(
-        (value: number) => value !== null && value !== undefined && value > 0,
-      );
+  // Una estacion se considera OPERATIVA si su ultima medicion es reciente.
+  // Las estaciones caidas NO participan en la media del grupo.
+  // A 5 min de intervalo de medida, 20 min = 4 ciclos fallidos = caida.
+  private static readonly OPERATIONAL_THRESHOLD_MIN = 20;
 
-    return this.calculateArithmeticMean(temperatures);
+  // Devuelve solo las estaciones con medicion reciente (operativas).
+  getOperationalStations(stations: StationEntity[]): StationEntity[] {
+    const now = Date.now();
+    const thresholdMs =
+      MeasurementsCalculationService.OPERATIONAL_THRESHOLD_MIN * 60 * 1000;
+
+    return (stations ?? []).filter((station) => {
+      const date = station?.currentMeasurement?.date;
+      if (!date) return false;
+      return now - new Date(date).getTime() <= thresholdMs;
+    });
   }
 
-  calculateStationsHumidityeMean(stations: StationEntity[]): number {
-    const humidityMeasurements: number[] = stations.map(
-      (station) => station.currentMeasurement.humidity,
-    );
+  calculateStationsTemperatureMean(stations: StationEntity[]): number {
+    return this.meanOf(stations, (m) => m.temperature);
+  }
 
-    return this.calculateArithmeticMean(humidityMeasurements);
+  calculateStationsHumidityMean(stations: StationEntity[]): number {
+    return this.meanOf(stations, (m) => m.humidity);
   }
 
   calculateStationsAirPressureMean(stations: StationEntity[]): number {
-    const airPressureMeasurements: number[] = stations.map(
-      (station) => station.currentMeasurement.airPressure,
-    );
+    return this.meanOf(stations, (m) => m.airPressure);
+  }
 
-    return this.calculateArithmeticMean(airPressureMeasurements);
+  // Media aritmetica de un campo sobre las estaciones dadas, tomando solo los
+  // valores numericos validos. NO excluye 0 ni negativos (0 grados o bajo cero
+  // son lecturas validas); solo descarta null/undefined/NaN.
+  private meanOf(
+    stations: StationEntity[],
+    pick: (measurement: StationMeasurementEntity) => number,
+  ): number {
+    const values = (stations ?? [])
+      .map((station) => pick(station.currentMeasurement))
+      .filter((value): value is number => Number.isFinite(value));
+
+    return this.calculateArithmeticMean(values);
   }
 
   private calculateArithmeticMean(numbers: number[]): number {
-    const itemsAmount = numbers.length;
-
-    if (itemsAmount === 0) {
+    if (numbers.length === 0) {
       return 0;
     }
 
     const sum = numbers.reduce((accumulator, value) => accumulator + value, 0);
-    const arithmeticMean = sum / itemsAmount;
-
-    return arithmeticMean;
+    return sum / numbers.length;
   }
 }

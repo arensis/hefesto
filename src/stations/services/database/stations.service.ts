@@ -19,6 +19,11 @@ import { StationMeasurementsService } from './station-measurements.service';
 import { StationMeasurementEntity } from '../../database/model/station-measurement.entity';
 import { MeasurementMapperService } from '../mappers/measurement.mapper';
 import { StationMapperService } from '../mappers/station.mapper';
+import {
+  DailyRollupsService,
+  AggregateResult,
+} from './daily-rollups.service';
+import { AggregatePeriod } from '../../dto/aggregate-query.dto';
 import { DeleteResult } from 'mongodb';
 
 @Injectable()
@@ -32,6 +37,7 @@ export class StationsService {
     private readonly stationMeasurementsService: StationMeasurementsService,
     private measurementMapper: MeasurementMapperService,
     private stationMapper: StationMapperService,
+    private dailyRollupsService: DailyRollupsService,
   ) {}
 
   async findAllNotGrouped(): Promise<StationResponseDto[]> {
@@ -150,6 +156,19 @@ export class StationsService {
     );
   }
 
+  async getAggregates(
+    stationId: string,
+    period: AggregatePeriod,
+    date: Date,
+  ): Promise<AggregateResult> {
+    return this.dailyRollupsService.getAggregate(
+      'station',
+      stationId,
+      period,
+      date,
+    );
+  }
+
   async create(stationDto: StationDto): Promise<StationEntity> {
     stationDto.createdDate = new Date();
 
@@ -161,8 +180,10 @@ export class StationsService {
     measurementDto: Partial<MeasurementDto>,
     session?: ClientSession,
   ): Promise<StationResponseDto> {
-    if ((measurementDto?.temperature || 0) <= 0) {
-      throw new BadRequestException('Temperature cannot be 0 o null');
+    // La temperatura es obligatoria y numerica, pero 0 y los negativos son
+    // lecturas VALIDAS (0 grados o bajo cero). Solo rechazamos ausente/NaN.
+    if (!Number.isFinite(measurementDto?.temperature)) {
+      throw new BadRequestException('Temperature is required and must be a number');
     }
 
     const measurement = {
@@ -177,6 +198,20 @@ export class StationsService {
       measurement,
       session,
     );
+
+    // Rollup diario de la estacion (media/min/max), incremental y FUERA de la
+    // transaccion: un fallo de rollup no debe romper la ingesta. Es dato derivado
+    // (reconstruible con el backfill); el dato crudo es la fuente de verdad.
+    try {
+      await this.dailyRollupsService.applyMeasurement(
+        'station',
+        stationId,
+        measurement.date,
+        measurement,
+      );
+    } catch (error) {
+      console.error(`Error actualizando el rollup de la estacion ${stationId}:`, error);
+    }
 
     const updatedStation = await this.stationModel
       .findOneAndUpdate(
@@ -193,7 +228,7 @@ export class StationsService {
     }
 
     if (updatedStation.stationGroupId) {
-      this.stationGroupsService.updateStationGroup(
+      await this.stationGroupsService.updateStationGroup(
         updatedStation.stationGroupId,
         session,
       );

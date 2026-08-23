@@ -12,7 +12,10 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
+import { DateQueryDto, parseBucketMinutes } from '../dto/date-query.dto';
+import { AggregateQueryDto, parsePeriod } from '../dto/aggregate-query.dto';
 import { StationGroupDto } from '../dto/station.group.dto';
 import { StationGroupResponseDto } from '../dto/station-group-response.dto';
 import { StationGroupsService } from '../services/database/station-groups.service';
@@ -44,6 +47,36 @@ export class StationGroupsController {
   @ApiOkResponse({ type: StationGroupEntity })
   async findById(@Param('id') id: string): Promise<StationGroupResponseDto> {
     return await this.stationGroupsService.findById(id);
+  }
+
+  @Get(':id/measurements')
+  @ApiOperation({
+    summary: 'Historico de la media del grupo por dia (con downsampling)',
+  })
+  async findMeasurementsByIdAndDate(
+    @Param('id') id: string,
+    @Query() queryDto: DateQueryDto,
+  ) {
+    return this.stationGroupsService.findMeasurementsBy(
+      id,
+      new Date(queryDto.date),
+      parseBucketMinutes(queryDto.bucketMinutes),
+    );
+  }
+
+  @Get(':id/aggregates')
+  @ApiOperation({
+    summary: 'Agregados (media/min/max) por dia, mes o anio del grupo',
+  })
+  async getAggregates(
+    @Param('id') id: string,
+    @Query() queryDto: AggregateQueryDto,
+  ) {
+    return this.stationGroupsService.getAggregates(
+      id,
+      parsePeriod(queryDto.period),
+      new Date(queryDto.date),
+    );
   }
 
   @Post()
