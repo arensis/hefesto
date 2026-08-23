@@ -16,6 +16,8 @@ import {
 } from '../../database/model/station-group.entity';
 import { MeasurementMapperService } from '../mappers/measurement.mapper';
 import { StationGroupResponseMapper } from '../mappers/station-group-response.mapper';
+import { StationGroupMeasurementsService } from './station-group-measurements.service';
+import { StationGroupMeasurementEntity } from '../../database/model/station-group-measurement.entity';
 import { DeleteResult } from 'mongodb';
 
 @Injectable()
@@ -27,6 +29,7 @@ export class StationGroupsService {
     private stationsService: StationsService,
     private measurementMapper: MeasurementMapperService,
     private stationGroupResponseMapper: StationGroupResponseMapper,
+    private stationGroupMeasurementsService: StationGroupMeasurementsService,
   ) {}
 
   async findAll(): Promise<StationGroupResponseDto[]> {
@@ -118,7 +121,26 @@ export class StationGroupsService {
       throw new NotFoundException('Station group not found');
     }
 
+    // Persistimos el punto en el historico del grupo (serie temporal de la media).
+    await this.stationGroupMeasurementsService.create(
+      stationGroupId,
+      groupMeasurement,
+      session,
+    );
+
     return updated as StationGroupEntity;
+  }
+
+  async findMeasurementsBy(
+    stationGroupId: string,
+    date: Date,
+    bucketMinutes?: number,
+  ): Promise<StationGroupMeasurementEntity[]> {
+    return this.stationGroupMeasurementsService.findMeasurementsByDay(
+      stationGroupId,
+      date,
+      bucketMinutes,
+    );
   }
 
   async updateStationGroup(

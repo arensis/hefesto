@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model } from 'mongoose';
 import { StationMeasurementDto } from '../../dto/station-measurement.dto';
+import { downsampleByBucket } from './downsample.util';
 
 @Injectable()
 export class StationMeasurementsService {
@@ -49,30 +50,6 @@ export class StationMeasurementsService {
       .sort({ date: 1 })
       .lean();
 
-    return this.downsample(measurements, bucketMinutes);
-  }
-
-  // Conserva una medida por cada bucket de N minutos (la primera de cada bucket).
-  // Los datos historicos densos (p. ej. una medida cada pocos segundos) se
-  // devuelven ya aligerados, manteniendo intactos los documentos en la BD.
-  private downsample(
-    measurements: StationMeasurementEntity[],
-    bucketMinutes: number,
-  ): StationMeasurementEntity[] {
-    if (!bucketMinutes || bucketMinutes <= 0) return measurements;
-
-    const bucketMs = bucketMinutes * 60 * 1000;
-    const result: StationMeasurementEntity[] = [];
-    let lastBucket: number | null = null;
-
-    for (const m of measurements) {
-      const bucket = Math.floor(new Date(m.date).getTime() / bucketMs);
-      if (bucket !== lastBucket) {
-        result.push(m);
-        lastBucket = bucket;
-      }
-    }
-
-    return result;
+    return downsampleByBucket(measurements, bucketMinutes);
   }
 }
