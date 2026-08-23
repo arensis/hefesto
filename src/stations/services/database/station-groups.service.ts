@@ -181,6 +181,7 @@ export class StationGroupsService {
   ): Promise<StationGroupEntity> {
     const stations = await this.stationsService.findEntitiesByStationGroupId(
       stationGroupId,
+      session,
     );
 
     return await this.addMeasurement(stationGroupId, stations, session);
@@ -191,7 +192,11 @@ export class StationGroupsService {
     stationId: string,
     session?: ClientSession,
   ): Promise<StationGroupEntity> {
-    await this.stationsService.addStationGroupId(stationId, stationGroupId);
+    await this.stationsService.addStationGroupId(
+      stationId,
+      stationGroupId,
+      session,
+    );
 
     await this.stationGroupModel
       .findByIdAndUpdate(
@@ -217,7 +222,10 @@ export class StationGroupsService {
     stationId: string,
     session?: ClientSession,
   ): Promise<StationGroupEntity> {
-    const station = await this.stationsService.deleteStationGroupId(stationId);
+    const station = await this.stationsService.deleteStationGroupId(
+      stationId,
+      session,
+    );
 
     if (!station) {
       throw new NotFoundException(`Station ${stationId} not found`);
