@@ -26,6 +26,11 @@ import {
   StationGroupMeasurementEntity,
   StationGroupMeasurementEntitySchema,
 } from './database/model/station-group-measurement.entity';
+import {
+  DailyRollupEntity,
+  DailyRollupEntitySchema,
+} from './database/model/daily-rollup.entity';
+import { DailyRollupsService } from './services/database/daily-rollups.service';
 
 @Module({
   imports: [
@@ -40,6 +45,7 @@ import {
         name: StationGroupMeasurementEntity.name,
         schema: StationGroupMeasurementEntitySchema,
       },
+      { name: DailyRollupEntity.name, schema: DailyRollupEntitySchema },
     ]),
   ],
   controllers: [StationsController, StationGroupsController],
@@ -55,6 +61,7 @@ import {
     StationGroupResponseMapper,
     StationMapperService,
     MeasurementsCalculationService,
+    DailyRollupsService,
   ],
 })
 export class StationsModule {}

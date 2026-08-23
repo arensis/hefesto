@@ -19,6 +19,11 @@ import { StationMeasurementsService } from './station-measurements.service';
 import { StationMeasurementEntity } from '../../database/model/station-measurement.entity';
 import { MeasurementMapperService } from '../mappers/measurement.mapper';
 import { StationMapperService } from '../mappers/station.mapper';
+import {
+  DailyRollupsService,
+  AggregateResult,
+} from './daily-rollups.service';
+import { AggregatePeriod } from '../../dto/aggregate-query.dto';
 import { DeleteResult } from 'mongodb';
 
 @Injectable()
@@ -32,6 +37,7 @@ export class StationsService {
     private readonly stationMeasurementsService: StationMeasurementsService,
     private measurementMapper: MeasurementMapperService,
     private stationMapper: StationMapperService,
+    private dailyRollupsService: DailyRollupsService,
   ) {}
 
   async findAllNotGrouped(): Promise<StationResponseDto[]> {
@@ -150,6 +156,19 @@ export class StationsService {
     );
   }
 
+  async getAggregates(
+    stationId: string,
+    period: AggregatePeriod,
+    date: Date,
+  ): Promise<AggregateResult> {
+    return this.dailyRollupsService.getAggregate(
+      'station',
+      stationId,
+      period,
+      date,
+    );
+  }
+
   async create(stationDto: StationDto): Promise<StationEntity> {
     stationDto.createdDate = new Date();
 
@@ -176,6 +195,15 @@ export class StationsService {
 
     await this.stationMeasurementsService.create(
       stationId,
+      measurement,
+      session,
+    );
+
+    // Actualiza el rollup diario de la estacion (media/min/max) de forma incremental.
+    await this.dailyRollupsService.applyMeasurement(
+      'station',
+      stationId,
+      measurement.date,
       measurement,
       session,
     );
