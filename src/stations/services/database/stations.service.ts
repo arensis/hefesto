@@ -161,8 +161,10 @@ export class StationsService {
     measurementDto: Partial<MeasurementDto>,
     session?: ClientSession,
   ): Promise<StationResponseDto> {
-    if ((measurementDto?.temperature || 0) <= 0) {
-      throw new BadRequestException('Temperature cannot be 0 o null');
+    // La temperatura es obligatoria y numerica, pero 0 y los negativos son
+    // lecturas VALIDAS (0 grados o bajo cero). Solo rechazamos ausente/NaN.
+    if (!Number.isFinite(measurementDto?.temperature)) {
+      throw new BadRequestException('Temperature is required and must be a number');
     }
 
     const measurement = {
@@ -193,7 +195,7 @@ export class StationsService {
     }
 
     if (updatedStation.stationGroupId) {
-      this.stationGroupsService.updateStationGroup(
+      await this.stationGroupsService.updateStationGroup(
         updatedStation.stationGroupId,
         session,
       );

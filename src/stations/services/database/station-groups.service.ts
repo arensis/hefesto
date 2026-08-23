@@ -1,6 +1,5 @@
 import { StationGroupResponseDto } from '../../dto/station-group-response.dto';
 import {
-  BadRequestException,
   forwardRef,
   Inject,
   Injectable,
@@ -91,8 +90,16 @@ export class StationGroupsService {
     const groupMeasurement =
       this.measurementMapper.buildGroupStationMeasurement(stations);
 
-    if ((groupMeasurement?.temperature || 0) <= 0) {
-      throw new BadRequestException('Temperature cannot be 0 or null');
+    // Si no hay estaciones operativas no hay media valida: no sobreescribimos
+    // la media del grupo con ceros; dejamos la ultima media conocida.
+    if (!groupMeasurement) {
+      const group = await this.stationGroupModel.findById(stationGroupId).lean();
+
+      if (!group) {
+        throw new NotFoundException('Station group not found');
+      }
+
+      return group as StationGroupEntity;
     }
 
     const updated = await this.stationGroupModel
