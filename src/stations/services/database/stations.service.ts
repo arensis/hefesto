@@ -199,14 +199,19 @@ export class StationsService {
       session,
     );
 
-    // Actualiza el rollup diario de la estacion (media/min/max) de forma incremental.
-    await this.dailyRollupsService.applyMeasurement(
-      'station',
-      stationId,
-      measurement.date,
-      measurement,
-      session,
-    );
+    // Rollup diario de la estacion (media/min/max), incremental y FUERA de la
+    // transaccion: un fallo de rollup no debe romper la ingesta. Es dato derivado
+    // (reconstruible con el backfill); el dato crudo es la fuente de verdad.
+    try {
+      await this.dailyRollupsService.applyMeasurement(
+        'station',
+        stationId,
+        measurement.date,
+        measurement,
+      );
+    } catch (error) {
+      console.error(`Error actualizando el rollup de la estacion ${stationId}:`, error);
+    }
 
     const updatedStation = await this.stationModel
       .findOneAndUpdate(

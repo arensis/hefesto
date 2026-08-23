@@ -134,14 +134,18 @@ export class StationGroupsService {
       session,
     );
 
-    // Actualiza el rollup diario del grupo (media/min/max) de forma incremental.
-    await this.dailyRollupsService.applyMeasurement(
-      'group',
-      stationGroupId,
-      groupMeasurement.date,
-      groupMeasurement,
-      session,
-    );
+    // Rollup diario del grupo (media/min/max), incremental y FUERA de la
+    // transaccion: un fallo de rollup no debe romper la propagacion/ingesta.
+    try {
+      await this.dailyRollupsService.applyMeasurement(
+        'group',
+        stationGroupId,
+        groupMeasurement.date,
+        groupMeasurement,
+      );
+    } catch (error) {
+      console.error(`Error actualizando el rollup del grupo ${stationGroupId}:`, error);
+    }
 
     return updated as StationGroupEntity;
   }
