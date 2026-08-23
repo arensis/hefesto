@@ -11,15 +11,17 @@ export class MeasurementsCalculationService {
 
   // Devuelve solo las estaciones con medicion reciente (operativas).
   getOperationalStations(stations: StationEntity[]): StationEntity[] {
-    const now = Date.now();
+    return (stations ?? []).filter((station) => this.isOperational(station));
+  }
+
+  // Una estacion es operativa si su ultima medicion cae dentro del umbral.
+  isOperational(station: StationEntity): boolean {
+    const date = station?.currentMeasurement?.date;
+    if (!date) return false;
+
     const thresholdMs =
       MeasurementsCalculationService.OPERATIONAL_THRESHOLD_MIN * 60 * 1000;
-
-    return (stations ?? []).filter((station) => {
-      const date = station?.currentMeasurement?.date;
-      if (!date) return false;
-      return now - new Date(date).getTime() <= thresholdMs;
-    });
+    return Date.now() - new Date(date).getTime() <= thresholdMs;
   }
 
   calculateStationsTemperatureMean(stations: StationEntity[]): number {

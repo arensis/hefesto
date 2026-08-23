@@ -3,10 +3,14 @@ import { StationEntity } from 'src/stations/database/model/station.entity';
 import { LocationDto } from 'src/stations/dto/location.dto';
 import { StationResponseDto } from 'src/stations/dto/station-response.dto';
 import { MeasurementMapperService } from './measurement.mapper';
+import { MeasurementsCalculationService } from '../measurements-calculations.service';
 
 @Injectable()
 export class StationMapperService {
-  constructor(private measurementMapper: MeasurementMapperService) {}
+  constructor(
+    private measurementMapper: MeasurementMapperService,
+    private measurementsCalculationService: MeasurementsCalculationService,
+  ) {}
 
   mapStationResponseDto(station: StationEntity): StationResponseDto {
     return {
@@ -23,6 +27,7 @@ export class StationMapperService {
         station.currentMeasurement,
       ),
       stationGroupId: station.stationGroupId,
+      operational: this.measurementsCalculationService.isOperational(station),
     } as StationResponseDto;
   }
 }
