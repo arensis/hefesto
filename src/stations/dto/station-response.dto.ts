@@ -15,4 +15,9 @@ export class StationResponseDto extends BaseStationResponseDto {
     default: '',
   })
   stationGroupId: string;
+
+  @ApiProperty({
+    description: 'true si la ultima medicion es reciente (participa en la media del grupo)',
+  })
+  operational: boolean;
 }
